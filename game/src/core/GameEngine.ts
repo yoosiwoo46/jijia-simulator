@@ -1030,63 +1030,23 @@ export function advanceWeek(state: GameState): GameState {
 
   // Dianping Must-Eat List (calculated at week 1, based on last month's data)
   if (s.gameTime.week === 1 && s.absoluteWeek > 4) {
-    const onlineOrders = s.lastMonthOnlineOrders
-    const offlineOrders = s.lastMonthOfflineOrders
-    const badReviews = s.lastMonthBadReviews
-    const hasOnlinePlatform = s.platforms.some(p => p.isJoined)
-
-    let onlineBaseScore = 0
-    if (hasOnlinePlatform) {
-      if (onlineOrders >= 3000) onlineBaseScore = 10
-      else if (onlineOrders >= 2500) onlineBaseScore = 8
-      else if (onlineOrders >= 2000) onlineBaseScore = 6
-    }
-    const onlineScore = onlineBaseScore * 0.3
-
-    let offlineBaseScore = 0
-    if (offlineOrders >= 450) offlineBaseScore = 10
-    else if (offlineOrders >= 400) offlineBaseScore = 8
-    else if (offlineOrders >= 350) offlineBaseScore = 6
-    const offlineScore = offlineBaseScore * 0.4
-
-    let badReviewBaseScore = 0
-    if (hasOnlinePlatform) {
-      if (badReviews <= 5) badReviewBaseScore = 10
-      else if (badReviews <= 10) badReviewBaseScore = 8
-      else if (badReviews <= 15) badReviewBaseScore = 6
-    }
-    const badReviewScore = badReviewBaseScore * 0.3
-
-    const totalScore = onlineScore + offlineScore + badReviewScore
-    const playerScore = Math.round(totalScore * 10) / 10
-
-    const playerDetail = {
-      onlineOrders,
-      onlineBaseScore,
-      onlineScore: Math.round(onlineScore * 10) / 10,
-      offlineOrders,
-      offlineBaseScore,
-      offlineScore: Math.round(offlineScore * 10) / 10,
-      badReviews,
-      badReviewBaseScore,
-      badReviewScore: Math.round(badReviewScore * 10) / 10,
-    }
+    const playerScore = Math.round((8.0 + Math.random() * 2.0) * 10) / 10
 
     function getBonusText(rank: number, score: number): string {
-      if (score < 8.9) return '未上榜'
+      if (score < 9.0) return '未上榜'
       if (rank === 1) return '下个月外卖优惠券和折扣平台全额补贴，商家无需承担'
       if (rank >= 2 && rank <= 4 && score >= 9.5) return '下月到店单量+15%，外卖平台单量+5%'
       if (rank >= 5 && score >= 9.1) return '下月到店单量+10%，外卖平台单量+5%'
-      if (score >= 8.9) return '下月到店单量+10%'
+      if (score >= 9.0) return '下月到店单量+10%'
       return '未上榜'
     }
 
     const otherNames = ['老王烧烤', '小李面馆', '张姐麻辣烫', '赵哥火锅', '陈记饺子', '黄焖鸡米饭', '沙县小吃', '兰州拉面', '重庆小面', '正新鸡排']
 
-    if (playerScore < 8.9) {
+    if (playerScore < 9.0) {
       const top10: { name: string; score: number }[] = []
       for (let i = 0; i < 10; i++) {
-        const score = Math.round((8.9 + Math.random() * 1.1) * 10) / 10
+        const score = Math.round((9.0 + Math.random() * 1.0) * 10) / 10
         top10.push({ name: otherNames[i], score: Math.min(10.0, score) })
       }
       top10.sort((a, b) => b.score - a.score)
@@ -1096,16 +1056,15 @@ export function advanceWeek(state: GameState): GameState {
           name: shop.name,
           score: shop.score,
           bonus: getBonusText(i + 1, shop.score),
-          detail: null,
         })),
-        { name: '你的店铺', score: playerScore, bonus: '未上榜', detail: playerDetail },
+        { name: '你的店铺', score: playerScore, bonus: '未上榜' },
       ]
       s.dianpingRank = null
       s.dianpingBonus = null
     } else {
       const otherShops: { name: string; score: number }[] = []
       for (let i = 0; i < 9; i++) {
-        const score = Math.round((8.9 + Math.random() * 1.1) * 10) / 10
+        const score = Math.round((9.0 + Math.random() * 1.0) * 10) / 10
         otherShops.push({ name: otherNames[i], score: Math.min(10.0, score) })
       }
 
@@ -1122,7 +1081,7 @@ export function advanceWeek(state: GameState): GameState {
         s.dianpingBonus = `第${playerRank}名：下月到店单量+15%，外卖平台单量+5%`
       } else if (playerRank >= 5 && playerScore >= 9.1) {
         s.dianpingBonus = `第${playerRank}名：下月到店单量+10%，外卖平台单量+5%`
-      } else if (playerScore >= 8.9) {
+      } else if (playerScore >= 9.0) {
         s.dianpingBonus = `第${playerRank}名：下月到店单量+10%`
       } else {
         s.dianpingBonus = null
@@ -1132,7 +1091,6 @@ export function advanceWeek(state: GameState): GameState {
         name: shop.name,
         score: shop.score,
         bonus: getBonusText(i + 1, shop.score),
-        detail: shop.name === '你的店铺' ? playerDetail : null,
       }))
     }
 
