@@ -104,7 +104,7 @@ function TutorialGuide({ onDismiss }: { onDismiss: () => void }) {
 }
 
 function DianpingPopup({ ranking, playerRank, onConfirm }: {
-  ranking: { name: string; score: number; bonus: string }[]
+  ranking: { name: string; score: number; bonus: string; detail: { onlineOrders: number; onlineBaseScore: number; onlineScore: number; offlineOrders: number; offlineBaseScore: number; offlineScore: number; badReviews: number; badReviewBaseScore: number; badReviewScore: number } | null }[]
   playerRank: number | null
   onConfirm: () => void
 }) {
@@ -143,7 +143,29 @@ function DianpingPopup({ ranking, playerRank, onConfirm }: {
             ))}
           </tbody>
         </table>
-        {!isOnList && playerEntry && (
+        {playerEntry && playerEntry.detail && (
+          <div style={{
+            marginTop: '12px', padding: '12px', background: 'rgba(255,215,0,0.1)',
+            borderRadius: '8px', fontFamily: 'var(--pixel-font)', fontSize: '11px', lineHeight: '1.8',
+          }}>
+            <div style={{ fontWeight: 'bold', marginBottom: '6px', textAlign: 'center' }}>
+              你的店铺评分明细（{playerEntry.score}分{isOnList ? `，第${playerRank}名` : '，未上榜'}）
+            </div>
+            <div style={{ color: '#555' }}>
+              📦 外卖销量（30%）：上月{playerEntry.detail.onlineOrders}单，
+              {playerEntry.detail.onlineBaseScore}分×30%={playerEntry.detail.onlineScore}分
+            </div>
+            <div style={{ color: '#555' }}>
+              🏪 到店销量（40%）：上月{playerEntry.detail.offlineOrders}单，
+              {playerEntry.detail.offlineBaseScore}分×40%={playerEntry.detail.offlineScore}分
+            </div>
+            <div style={{ color: '#555' }}>
+              ⭐ 差评控制（30%）：上月{playerEntry.detail.badReviews}个未申诉差评，
+              {playerEntry.detail.badReviewBaseScore}分×30%={playerEntry.detail.badReviewScore}分
+            </div>
+          </div>
+        )}
+        {!isOnList && playerEntry && !playerEntry.detail && (
           <div style={{
             marginTop: '12px', padding: '10px', background: 'rgba(200,200,200,0.2)',
             borderRadius: '8px', textAlign: 'center',

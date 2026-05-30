@@ -1033,32 +1033,44 @@ export function advanceWeek(state: GameState): GameState {
     const onlineOrders = s.lastMonthOnlineOrders
     const offlineOrders = s.lastMonthOfflineOrders
     const badReviews = s.lastMonthBadReviews
-    const marketingActive = s.lastMonthMarketingActive
     const hasOnlinePlatform = s.platforms.some(p => p.isJoined)
 
-    let onlineScore = 0
+    let onlineBaseScore = 0
     if (hasOnlinePlatform) {
-      if (onlineOrders >= 4000) onlineScore = 10
-      else if (onlineOrders >= 3500) onlineScore = 8
-      else if (onlineOrders >= 3000) onlineScore = 6
+      if (onlineOrders >= 3000) onlineBaseScore = 10
+      else if (onlineOrders >= 2500) onlineBaseScore = 8
+      else if (onlineOrders >= 2000) onlineBaseScore = 6
     }
+    const onlineScore = onlineBaseScore * 0.3
 
-    let offlineScore = 0
-    if (offlineOrders >= 450) offlineScore = 10
-    else if (offlineOrders >= 400) offlineScore = 8
-    else if (offlineOrders >= 350) offlineScore = 6
+    let offlineBaseScore = 0
+    if (offlineOrders >= 450) offlineBaseScore = 10
+    else if (offlineOrders >= 400) offlineBaseScore = 8
+    else if (offlineOrders >= 350) offlineBaseScore = 6
+    const offlineScore = offlineBaseScore * 0.4
 
-    let badReviewScore = 0
+    let badReviewBaseScore = 0
     if (hasOnlinePlatform) {
-      if (badReviews <= 5) badReviewScore = 10
-      else if (badReviews <= 10) badReviewScore = 8
-      else if (badReviews <= 15) badReviewScore = 6
+      if (badReviews <= 5) badReviewBaseScore = 10
+      else if (badReviews <= 10) badReviewBaseScore = 8
+      else if (badReviews <= 15) badReviewBaseScore = 6
     }
+    const badReviewScore = badReviewBaseScore * 0.3
 
-    const marketingScore = hasOnlinePlatform && marketingActive ? 10 : 0
-
-    const totalScore = onlineScore * 0.2 + offlineScore * 0.4 + badReviewScore * 0.3 + marketingScore * 0.1
+    const totalScore = onlineScore + offlineScore + badReviewScore
     const playerScore = Math.round(totalScore * 10) / 10
+
+    const playerDetail = {
+      onlineOrders,
+      onlineBaseScore,
+      onlineScore: Math.round(onlineScore * 10) / 10,
+      offlineOrders,
+      offlineBaseScore,
+      offlineScore: Math.round(offlineScore * 10) / 10,
+      badReviews,
+      badReviewBaseScore,
+      badReviewScore: Math.round(badReviewScore * 10) / 10,
+    }
 
     function getBonusText(rank: number, score: number): string {
       if (score < 8.9) return '未上榜'
@@ -1084,8 +1096,9 @@ export function advanceWeek(state: GameState): GameState {
           name: shop.name,
           score: shop.score,
           bonus: getBonusText(i + 1, shop.score),
+          detail: null,
         })),
-        { name: '你的店铺', score: playerScore, bonus: '未上榜' },
+        { name: '你的店铺', score: playerScore, bonus: '未上榜', detail: playerDetail },
       ]
       s.dianpingRank = null
       s.dianpingBonus = null
@@ -1119,6 +1132,7 @@ export function advanceWeek(state: GameState): GameState {
         name: shop.name,
         score: shop.score,
         bonus: getBonusText(i + 1, shop.score),
+        detail: shop.name === '你的店铺' ? playerDetail : null,
       }))
     }
 

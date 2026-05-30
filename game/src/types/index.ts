@@ -411,7 +411,7 @@ export type GameState = {
   dianpingScore: number | null
   dianpingRank: number | null
   dianpingBonus: string | null
-  dianpingRanking: { name: string; score: number; bonus: string }[] | null
+  dianpingRanking: { name: string; score: number; bonus: string; detail: { onlineOrders: number; onlineBaseScore: number; onlineScore: number; offlineOrders: number; offlineBaseScore: number; offlineScore: number; badReviews: number; badReviewBaseScore: number; badReviewScore: number } | null }[] | null
   talentSubsidyShown: boolean
   enabledSkus: string[]
   lastWeekEventMerchSold: number
