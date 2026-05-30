@@ -21,32 +21,15 @@ const GRADE_LABELS: Record<string, string> = {
 
 export default function B2BScreen() {
   const { state, dispatch } = useGame()
-  const { b2bMerchants, stamina, absoluteWeek } = state
+  const { b2bMerchants, absoluteWeek } = state
 
   const unlockedMerchants = b2bMerchants.filter(m => m.unlockWeek <= absoluteWeek)
   const activeMerchants = unlockedMerchants.filter(m => m.isActive)
   const availableToSign = unlockedMerchants.filter(m => !m.isActive && m.cooldownWeeksLeft === 0)
 
-  const canExpand = stamina.current >= 2
-
   return (
     <div>
       <h2 className="screen-title">🏢 B端客户</h2>
-
-      <div className="card mb-12">
-        <div className="card-title">拓展B端客户</div>
-        <div className="cost-hint mb-8">
-          消耗体力：<span className="cost-value">2点</span>，
-          签约有30%被拒概率
-        </div>
-        <Button
-          variant="primary"
-          disabled={!canExpand}
-          onClick={() => dispatch({ type: 'EXPAND_B2B' })}
-        >
-          拓展B端客户
-        </Button>
-      </div>
 
       {availableToSign.length > 0 && (
         <div className="card mb-12">
@@ -55,7 +38,6 @@ export default function B2BScreen() {
             <div key={merchant.type} className="employee-card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span className="employee-name">{merchant.name}</span>
-                <span className="text-sm text-gray">30%拒绝率</span>
               </div>
               <div className="employee-detail">周订单：{merchant.minWeeklyOrders}-{merchant.maxWeeklyOrders}份</div>
               <div className="employee-detail">单价：{fmtMoney(merchant.unitPrice)}元/份</div>

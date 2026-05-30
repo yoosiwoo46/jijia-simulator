@@ -45,6 +45,7 @@ export type FurnitureType =
 export type Furniture = {
   type: FurnitureType
   count: number
+  brokenCount?: number
 }
 
 export type ShopExpansion = {

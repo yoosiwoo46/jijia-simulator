@@ -273,7 +273,7 @@ function calculatePlatformRevenue(orders: number, platformId: PlatformId, state:
   const basePrice = calculateAverageOrderPrice(state.hasBeerLicense)
   const adjustment = state.weeklyPriceAdjustments[platformId] || 0
   const effectivePrice = Math.max(1, basePrice + adjustment)
-  const commissionRates: Record<PlatformId, number> = { sg: 0.18, mt: 0.2, jd: 0.15 }
+  const commissionRates: Record<PlatformId, number> = { sg: 0.15, mt: 0.15, jd: 0.15 }
   let revenue = Math.round(orders * effectivePrice * (1 - (commissionRates[platformId] || 0.2)))
 
   const platform = state.platforms.find((p) => p.id === platformId)
@@ -305,14 +305,9 @@ function calculatePrivateDomainRevenue(orders: number, state: GameState): number
 
 function calculateB2BRevenue(merchant: B2BMerchant, state: GameState): number {
   const basePrice = calculateAverageOrderPrice(state.hasBeerLicense)
-  if (merchant.relationLevel === 'intimate' || merchant.relationLevel === 'strategic') {
-    return Math.round(merchant.currentWeekOrders * basePrice)
-  }
-  const adjustment = state.weeklyPriceAdjustments['b2b'] || 0
-  const effectivePrice = Math.max(1, basePrice + adjustment)
   const relationConfig = B2B_RELATION_CONFIGS.find((c) => c.level === merchant.relationLevel)
   const modifier = relationConfig?.priceModifier || 0
-  return Math.round(merchant.currentWeekOrders * effectivePrice * (1 + modifier))
+  return Math.round(merchant.currentWeekOrders * basePrice * (1 + modifier))
 }
 
 function processPendingProcurement(state: GameState): InventoryItem[] {
@@ -1193,19 +1188,18 @@ export function advanceWeek(state: GameState): GameState {
     const updatedFurniture = s.shop.furniture.map((f) => {
       const config = FURNITURE_CONFIG_MAP.get(f.type)
       if (!config || config.breakRate <= 0) return f
-      const broken: FurnitureType[] = []
+      let brokenThisRound = 0
       for (let i = 0; i < f.count; i++) {
         if (Math.random() < config.breakRate) {
-          broken.push(f.type)
+          brokenThisRound++
         }
       }
-      if (broken.length > 0) {
-        const repairCost = broken.length * config.repairCost
-        s.cash -= repairCost
-        notifications.push(`${config.name}×${broken.length}损坏，维修费${fmtMoney(repairCost)}元`)
+      if (brokenThisRound > 0) {
+        notifications.push(`${config.name}×${brokenThisRound}损坏，请及时维修`)
+        return { ...f, count: f.count - brokenThisRound, brokenCount: (f.brokenCount ?? 0) + brokenThisRound }
       }
-      return { ...f, count: f.count - broken.length }
-    }).filter((f) => f.count > 0)
+      return f
+    }).filter((f) => f.count > 0 || (f.brokenCount ?? 0) > 0)
     s.shop = { ...s.shop, furniture: updatedFurniture }
   }
 

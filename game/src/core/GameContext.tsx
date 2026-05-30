@@ -26,7 +26,6 @@ import {
   HIRE_COST,
   MARKETING_INVESTMENT_PER_WEEK,
   BARGAIN_REJECTION_PROBABILITY,
-  B2B_REJECTION_PROBABILITY,
   CANDIDATE_COUNT_RANGE,
   PLATFORM_OPERATION_STAMINA_COST,
   PRIVATE_DOMAIN_OPERATION_STAMINA_COST,
@@ -98,6 +97,8 @@ export type GameAction =
   | { type: 'TOGGLE_SKU_FRANCHISE'; payload: { skuId: string } }
   | { type: 'TOGGLE_SKU_INDEPENDENT'; payload: { skuId: string } }
   | { type: 'SET_PRIVATE_DOMAIN_STRATEGY'; payload: { channel: PrivateDomainChannel; strategy: PrivateDomainStrategy } }
+  | { type: 'REPAIR_FURNITURE'; payload: { furnitureType: FurnitureType } }
+  | { type: 'STOP_MARKETING'; payload: { eventType: string } }
 
 function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
@@ -375,12 +376,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'SIGN_B2B_CONTRACT': {
-      if (Math.random() < B2B_REJECTION_PROBABILITY) {
-        return {
-          ...state,
-          notifications: [...state.notifications, '商家拒绝了合作请求'],
-        }
-      }
       return {
         ...state,
         b2bMerchants: state.b2bMerchants.map(m =>
@@ -761,6 +756,39 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const loaded = loadGame(action.payload.slot)
       if (loaded) return loaded
       return state
+    }
+
+    case 'STOP_MARKETING': {
+      return {
+        ...state,
+        marketingEvents: state.marketingEvents.map(e =>
+          e.type === action.payload.eventType ? { ...e, isActive: false } : e
+        ),
+        notifications: [...state.notifications, '已终止营销活动'],
+      }
+    }
+
+    case 'REPAIR_FURNITURE': {
+      const fType = action.payload.furnitureType
+      const fItem = state.shop.furniture.find(f => f.type === fType)
+      if (!fItem || !(fItem.brokenCount ?? 0)) return state
+      const cfg = FURNITURE_CONFIG_MAP.get(fType)
+      if (!cfg) return state
+      const repairCost = (fItem.brokenCount ?? 0) * cfg.repairCost
+      if (state.cash < repairCost) return state
+      return {
+        ...state,
+        cash: state.cash - repairCost,
+        shop: {
+          ...state.shop,
+          furniture: state.shop.furniture.map(f =>
+            f.type === fType
+              ? { ...f, count: f.count + (f.brokenCount ?? 0), brokenCount: 0 }
+              : f
+          ),
+        },
+        notifications: [...state.notifications, `维修${cfg.name}×${fItem.brokenCount}，花费${fmtMoney(repairCost)}元`],
+      }
     }
 
     default:

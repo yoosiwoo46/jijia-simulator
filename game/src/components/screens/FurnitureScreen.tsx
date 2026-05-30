@@ -9,10 +9,10 @@ export default function FurnitureScreen() {
   const { state, dispatch } = useGame()
   const { shop, cash, stamina, hasBeerLicense } = state
 
-  const furnitureMap = new Map(shop.furniture.map(f => [f.type, f.count]))
+  const furnitureMap = new Map(shop.furniture.map(f => [f.type, { count: f.count, brokenCount: f.brokenCount ?? 0 }]))
 
   function getFurnitureCount(type: FurnitureType): number {
-    return furnitureMap.get(type) ?? 0
+    return furnitureMap.get(type)?.count ?? 0
   }
 
   const canExpand = shop.floor1Area < SHOP_CONFIG.maxFloor1Area && cash >= SHOP_CONFIG.expansionCost && stamina.current >= 1
@@ -40,7 +40,7 @@ export default function FurnitureScreen() {
 
   return (
     <div>
-      <h2 className="screen-title">🪑 购买家具</h2>
+      <h2 className="screen-title">🪑 店铺装潢</h2>
 
       <div className="card mb-12">
         <div className="card-title">店铺信息</div>
@@ -65,6 +65,7 @@ export default function FurnitureScreen() {
         <div className="furniture-grid">
           {Array.from(FURNITURE_CONFIG_MAP.entries()).map(([type, cfg]) => {
             const count = getFurnitureCount(type)
+            const brokenCount = furnitureMap.get(type)?.brokenCount ?? 0
             const canBuy = cash >= cfg.price && stamina.current >= 1
             const isRequired = REQUIRED_FURNITURE_TYPES.includes(type)
 
@@ -76,16 +77,32 @@ export default function FurnitureScreen() {
                 </div>
                 <div className="furniture-price">{fmtMoney(cfg.price)}元</div>
                 <div className="furniture-count">已拥有：{count}</div>
+                {brokenCount > 0 && (
+                  <div style={{ color: '#e74c3c', fontFamily: 'var(--pixel-font)', fontSize: '11px', marginTop: '2px' }}>
+                    🔧 损坏{brokenCount}台（维修费{fmtMoney(brokenCount * cfg.repairCost)}元）
+                  </div>
+                )}
                 {cfg.area > 0 && <div className="text-gray text-sm">温控面积：{cfg.area}㎡</div>}
-                <Button
-                  variant="primary"
-                  size="sm"
-                  disabled={!canBuy}
-                  onClick={() => dispatch({ type: 'BUY_FURNITURE', payload: { furnitureType: type } })}
-                  className="mt-8"
-                >
-                  购买
-                </Button>
+                <div style={{ display: 'flex', gap: '4px', marginTop: '8px' }}>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    disabled={!canBuy}
+                    onClick={() => dispatch({ type: 'BUY_FURNITURE', payload: { furnitureType: type } })}
+                  >
+                    购买
+                  </Button>
+                  {brokenCount > 0 && (
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      disabled={cash < brokenCount * cfg.repairCost}
+                      onClick={() => dispatch({ type: 'REPAIR_FURNITURE', payload: { furnitureType: type } })}
+                    >
+                      维修
+                    </Button>
+                  )}
+                </div>
               </div>
             )
           })}

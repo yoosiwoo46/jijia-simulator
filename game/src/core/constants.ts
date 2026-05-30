@@ -61,7 +61,7 @@ export const PRIVATE_DOMAIN_DELEGATE_BAD_SPEECH = 7
 export const PRIVATE_DOMAIN_DELEGATE_GOOD_BONUS_RANGE: [number, number] = [0.15, 0.25]
 export const PRIVATE_DOMAIN_DELEGATE_BAD_PROBABILITY = 0.25
 
-export const BANKRUPTCY_LOAN_AMOUNT = 50000
+export const BANKRUPTCY_LOAN_AMOUNT = 100000
 export const BANKRUPTCY_LOAN_REPAY_WEEKS = 48
 export const MAX_BANKRUPTCIES = 3
 
@@ -635,7 +635,7 @@ export const B2B_RELATION_CONFIGS: B2BRelationConfig[] = [
   { level: 'normal', priceModifier: 0, fulfilledThreshold: 0 },
   { level: 'friendly', priceModifier: 0.1, fulfilledThreshold: 3 },
   { level: 'intimate', priceModifier: 0.25, fulfilledThreshold: 8 },
-  { level: 'strategic', priceModifier: 0.4, fulfilledThreshold: 15 },
+  { level: 'strategic', priceModifier: 0.3, fulfilledThreshold: 15 },
 ]
 
 export const B2B_BREACH_PENALTIES = [

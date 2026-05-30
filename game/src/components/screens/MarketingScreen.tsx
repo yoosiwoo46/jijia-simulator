@@ -42,7 +42,16 @@ export default function MarketingScreen() {
             <div key={event.type} className="employee-card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span className="employee-name">{event.name}</span>
-                <StatusBadge status="success" text="进行中" />
+                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                  <StatusBadge status="success" text="进行中" />
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={() => dispatch({ type: 'STOP_MARKETING', payload: { eventType: event.type } })}
+                  >
+                    终止营销
+                  </Button>
+                </div>
               </div>
             </div>
           ))}

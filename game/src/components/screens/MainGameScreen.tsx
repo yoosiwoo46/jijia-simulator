@@ -32,7 +32,7 @@ const MENU_ITEMS: MenuItem[] = [
   { key: 'personnel', phase: 'personnel', label: '店员管理', icon: '👥' },
   { key: 'marketing', phase: 'marketing', label: '平台营销', icon: '📱' },
   { key: 'research', phase: 'research', label: '自研拌料', icon: '🔬' },
-  { key: 'furniture', phase: 'furniture', label: '购买家具', icon: '🪑' },
+  { key: 'furniture', phase: 'furniture', label: '店铺装潢', icon: '🪑' },
   { key: 'production', phase: 'advance', label: '生产计划', icon: '📋' },
   { key: 'orders', phase: 'advance', label: '订单系统', icon: '📋' },
 ]
@@ -350,6 +350,23 @@ export default function MainGameScreen() {
                   </button>
                 </div>
               ))}
+            </div>
+          )}
+          {badges[activeScreen] && (
+            <div style={{
+              marginBottom: '12px', padding: '10px 14px',
+              background: 'linear-gradient(135deg, #fff3cd, #ffeaa7)',
+              borderRadius: '8px', border: '1px solid #f0c040',
+              fontFamily: 'var(--pixel-font)', fontSize: '12px', color: '#856404',
+              display: 'flex', alignItems: 'center', gap: '8px',
+            }}>
+              <span>💡</span>
+              <span>
+                {activeScreen === 'procurement' && '库存不足以满足本周订单需求，请及时采购原料！'}
+                {activeScreen === 'personnel' && '有员工心情低落，建议进行谈心沟通，避免员工离职！'}
+                {activeScreen === 'orders' && '有待申诉的差评，及时申诉可挽回店铺评分！'}
+                {activeScreen === 'furniture' && '有设备损坏，请及时维修以免影响经营！'}
+              </span>
             </div>
           )}
           {renderSubScreen(activeScreen)}
