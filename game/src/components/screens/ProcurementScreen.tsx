@@ -15,13 +15,13 @@ type CartItem = {
   subtotal: number
 }
 
-function getUnitPrice(cfg: IngredientConfig | undefined, ch: ProcurementChannel): number {
+function getUnitPrice(cfg: IngredientConfig | undefined, ch: ProcurementChannel, wholesalePrice?: number): number {
   if (!cfg) return 0
   if (ch === 'official') return cfg.officialPrice ?? 0
+  if (wholesalePrice !== undefined) return wholesalePrice
   const range = cfg.otherPriceRange
   if (!range) return 0
-  if (ch === 'wholesale') return range[0] ?? 0
-  return Math.round(((range[0] ?? 0) + (range[1] ?? 0)) / 2)
+  return range[0]
 }
 
 function seededRandom(seed: number): number {
@@ -32,6 +32,20 @@ function seededRandom(seed: number): number {
 export default function ProcurementScreen() {
   const { state, dispatch } = useGame()
   const { inventory, cash, stamina, channelOrderForecasts, absoluteWeek, isFranchisePeriod } = state
+
+  const wholesalePriceMap = useMemo(() => {
+    const m = new Map<IngredientType, number>()
+    let seed = absoluteWeek * 7919
+    for (const [type, cfg] of INGREDIENT_CONFIG_MAP.entries()) {
+      if (cfg.otherPriceRange) {
+        const [min, max] = cfg.otherPriceRange
+        seed++
+        const rand = seededRandom(seed)
+        m.set(type, Math.floor(rand * (max - min + 1)) + min)
+      }
+    }
+    return m
+  }, [absoluteWeek])
 
   const sortedInventory = useMemo(
     () => [...inventory].sort((a, b) => a.remainingShelfLife - b.remainingShelfLife),
@@ -71,7 +85,7 @@ export default function ProcurementScreen() {
   const [addError, setAddError] = useState('')
 
   const config = INGREDIENT_CONFIG_MAP.get(selectedType)
-  const unitPrice = getUnitPrice(config, channel)
+  const unitPrice = getUnitPrice(config, channel, channel === 'wholesale' ? wholesalePriceMap.get(selectedType) : undefined)
   const subtotal = unitPrice * quantity
 
   const totalCost = useMemo(() => {
@@ -124,7 +138,7 @@ export default function ProcurementScreen() {
       if (gap <= 0) continue
       const cfg = INGREDIENT_CONFIG_MAP.get(type)
       const ch: ProcurementChannel = cfg?.officialPrice ? 'official' : 'wholesale'
-      const price = getUnitPrice(cfg, ch)
+      const price = getUnitPrice(cfg, ch, ch === 'wholesale' ? wholesalePriceMap.get(type) : undefined)
       newCart.push({
         ingredientType: type,
         quantity: gap,
@@ -140,7 +154,7 @@ export default function ProcurementScreen() {
     setCart(prev => prev.map((item, i) => {
       if (i !== index) return item
       const cfg = INGREDIENT_CONFIG_MAP.get(item.ingredientType)
-      const newPrice = getUnitPrice(cfg, newChannel)
+      const newPrice = getUnitPrice(cfg, newChannel, newChannel === 'wholesale' ? wholesalePriceMap.get(item.ingredientType) : undefined)
       return { ...item, channel: newChannel, unitPrice: newPrice, subtotal: newPrice * item.quantity }
     }))
   }
@@ -161,6 +175,7 @@ export default function ProcurementScreen() {
           ingredientType: item.ingredientType,
           quantity: item.quantity,
           channel: item.channel,
+          unitPrice: item.unitPrice,
         })),
       },
     })

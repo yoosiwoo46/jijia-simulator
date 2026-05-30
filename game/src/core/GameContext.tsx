@@ -48,8 +48,8 @@ function randInt(min: number, max: number): number {
 export type GameAction =
   | { type: 'SET_WEEK_PHASE'; payload: WeekPhase }
   | { type: 'ADVANCE_WEEK' }
-  | { type: 'PURCHASE_INGREDIENTS'; payload: { ingredientType: IngredientType; quantity: number; channel: ProcurementChannel } }
-  | { type: 'BATCH_PURCHASE_INGREDIENTS'; payload: { items: { ingredientType: IngredientType; quantity: number; channel: ProcurementChannel }[] } }
+  | { type: 'PURCHASE_INGREDIENTS'; payload: { ingredientType: IngredientType; quantity: number; channel: ProcurementChannel; unitPrice: number } }
+  | { type: 'BATCH_PURCHASE_INGREDIENTS'; payload: { items: { ingredientType: IngredientType; quantity: number; channel: ProcurementChannel; unitPrice: number }[] } }
   | { type: 'RECRUIT_EMPLOYEES' }
   | { type: 'HIRE_EMPLOYEE'; payload: { candidateId: string; bargain: boolean } }
   | { type: 'FIRE_EMPLOYEE'; payload: { employeeId: string } }
@@ -99,25 +99,6 @@ export type GameAction =
   | { type: 'TOGGLE_SKU_INDEPENDENT'; payload: { skuId: string } }
   | { type: 'SET_PRIVATE_DOMAIN_STRATEGY'; payload: { channel: PrivateDomainChannel; strategy: PrivateDomainStrategy } }
 
-function calcProcurementCost(ingredientType: IngredientType, quantity: number, channel: ProcurementChannel): number {
-  const config = INGREDIENT_CONFIG_MAP.get(ingredientType)
-  if (!config) return 0
-
-  let unitPrice: number
-  if (channel === 'official') {
-    unitPrice = config.officialPrice ?? 0
-  } else {
-    const range = config.otherPriceRange ?? [0, 0]
-    unitPrice = (range[0] + range[1]) / 2
-  }
-
-  if (config.bulkDiscountThreshold !== null && quantity >= config.bulkDiscountThreshold && config.bulkDiscountRate !== null) {
-    unitPrice *= config.bulkDiscountRate
-  }
-
-  return Math.round(unitPrice * quantity)
-}
-
 function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
     case 'SET_WEEK_PHASE':
@@ -128,13 +109,12 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'PURCHASE_INGREDIENTS': {
-      const { ingredientType, quantity, channel } = action.payload
+      const { ingredientType, quantity, channel, unitPrice } = action.payload
       if (state.stamina.current < 1) return state
-      const baseCost = calcProcurementCost(ingredientType, quantity, channel)
       let discount = 1
       if (quantity >= 1200) discount = 0.8
       else if (quantity >= 800) discount = 0.9
-      const cost = Math.round(baseCost * discount)
+      const cost = Math.round(unitPrice * quantity * discount)
       if (state.cash < cost) return state
       const shelfLife = getShelfLife(ingredientType, state.gameTime.month)
       return {
@@ -152,12 +132,11 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       let totalCost = 0
       let anyItemDiscounted = false
       for (const item of action.payload.items) {
-        const baseCost = calcProcurementCost(item.ingredientType, item.quantity, item.channel)
         let discount = 1
         if (item.quantity >= 1200) discount = 0.8
         else if (item.quantity >= 800) discount = 0.9
         if (discount < 1) anyItemDiscounted = true
-        totalCost += Math.round(baseCost * discount)
+        totalCost += Math.round(item.unitPrice * item.quantity * discount)
       }
       if (!anyItemDiscounted && totalCost >= 12000) {
         totalCost = Math.round(totalCost * 0.9)
