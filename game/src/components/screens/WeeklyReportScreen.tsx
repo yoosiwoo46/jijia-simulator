@@ -9,7 +9,7 @@ export default function WeeklyReportScreen() {
   const { state } = useGame()
   const { lastWeekSales, weeklyRevenue, weeklyExpenses, reviews, notifications,
     totalRevenue, totalExpenses, cash, activeLoans, weeklyExpensesDetail, monthlyExpensesDetail,
-    inventory, shop, employees, activeLoans: loans } = state
+    inventory, shop, activeLoans: loans } = state
   const netProfit = weeklyRevenue - weeklyExpenses
   const totalNetProfit = totalRevenue - totalExpenses
 
