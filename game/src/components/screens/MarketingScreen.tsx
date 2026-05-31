@@ -12,7 +12,6 @@ export default function MarketingScreen() {
 
   const canPlan = stamina.current >= 1
   const activeEvents = marketingEvents.filter(e => e.isActive)
-  const hasActiveEvent = activeEvents.length > 0
   const hasMajorEvent = activeEvents.some(e => MAJOR_EVENT_TYPES.includes(e.type))
   const bonusMultiplier = hasMajorEvent ? 15 : 5
   const lastWeekBonus = lastWeekEventMerchSold * bonusMultiplier
