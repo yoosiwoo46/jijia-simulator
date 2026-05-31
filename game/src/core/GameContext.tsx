@@ -102,8 +102,10 @@ export type GameAction =
   | { type: 'STOP_MARKETING'; payload: { eventType: string } }
   | { type: 'HIRE_INTERN' }
   | { type: 'OUTSOURCE_CHANNEL'; payload: { channel: string; outsourceType: 'emergency' | 'longterm' } }
+  | { type: 'STOP_OUTSOURCE'; payload: { channel: string } }
   | { type: 'TOGGLE_WATCH_PARTY'; payload: { eventType: string } }
   | { type: 'CYCLE_TITLE' }
+  | { type: 'LEAVE_FRANCHISE' }
 
 function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
@@ -197,7 +199,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         }
       }
 
-      const hired: Candidate = { ...candidate, expectedSalary: salary }
       return {
         ...state,
         pendingHires: state.pendingHires.filter(c => c.id !== action.payload.candidateId),
@@ -855,7 +856,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const { channel, outsourceType } = action.payload
       const forecast = state.channelOrderForecasts.find(f => f.channel === channel)
       if (!forecast) return state
-      const weeksLeft = outsourceType === 'emergency' ? 1 : 12
+      const weeksLeft = outsourceType === 'emergency' ? 1 : 999
       return {
         ...state,
         channelOrderForecasts: state.channelOrderForecasts.map(f =>
@@ -865,6 +866,18 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         ),
         totalOutsourceCount: state.totalOutsourceCount + 1,
         notifications: [...state.notifications, `${outsourceType === 'emergency' ? '紧急' : '长期'}外包${channel}渠道订单`],
+      }
+    }
+
+    case 'STOP_OUTSOURCE': {
+      return {
+        ...state,
+        channelOrderForecasts: state.channelOrderForecasts.map(f =>
+          f.channel === action.payload.channel
+            ? { ...f, isOutsourced: false, outsourceType: undefined, outsourceWeeksLeft: undefined }
+            : f
+        ),
+        notifications: [...state.notifications, '已终止外包'],
       }
     }
 
@@ -883,6 +896,27 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const currentIdx = state.currentTitle ? state.titles.indexOf(state.currentTitle) : -1
       const nextIdx = (currentIdx + 1) % state.titles.length
       return { ...state, currentTitle: state.titles[nextIdx] }
+    }
+
+    case 'LEAVE_FRANCHISE': {
+      return {
+        ...state,
+        isFranchisePeriod: false,
+        leftFranchise: true,
+        platforms: state.platforms.map(p => ({
+          ...p,
+          isJoined: false,
+          marketingActive: false,
+          marketingBoost: 0,
+          weekJoined: undefined,
+          rating: 3.0,
+          cancelledOrders: 0,
+          isSuspended: false,
+          suspensionWeeksLeft: 0,
+          deposit: 0,
+        })),
+        notifications: [...state.notifications, '你已退出加盟！外卖平台需重新入驻，用增效果消失，从80%基础单量做起'],
+      }
     }
 
     default:
