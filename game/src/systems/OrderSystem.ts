@@ -50,7 +50,6 @@ export function calculateIngredientsForOrders(
   enabledSkus?: string[],
   hasActiveEvent: boolean = false,
   hasSelfSauce: boolean = false,
-  isPlatformChannel: boolean = false,
 ): Partial<Record<IngredientType, number>> {
   const allSides = SKU_CONFIGS.filter((s) => s.type === 'side')
   const allDrinks = SKU_CONFIGS.filter((s) => s.type === 'drink')
@@ -73,13 +72,7 @@ export function calculateIngredientsForOrders(
   const mainCount = orderCount
   total['chicken_rack'] = (total['chicken_rack'] || 0) + mainCount
   if (useOfficialSauce) {
-    if (isPlatformChannel) {
-      total['official_sauce'] = (total['official_sauce'] || 0) + mainCount
-    } else if (hasSelfSauce) {
-      total['self_sauce'] = (total['self_sauce'] || 0) + mainCount
-    } else {
-      total['official_sauce'] = (total['official_sauce'] || 0) + mainCount
-    }
+    total['official_sauce'] = (total['official_sauce'] || 0) + mainCount
   } else {
     if (hasSelfSauce) {
       total['self_sauce'] = (total['self_sauce'] || 0) + mainCount
@@ -175,7 +168,7 @@ export function generateSKUDetails(
     count: mainCount,
     ingredients: [
       { name: '生鸡架', count: mainCount },
-      ...(isFranchisePeriod ? [{ name: '官方拌料', count: mainCount }] : []),
+      ...(isFranchisePeriod ? [{ name: '官方拌料', count: mainCount }] : [{ name: '自研拌料', count: mainCount }]),
     ],
   })
 
@@ -188,7 +181,7 @@ export function generateSKUDetails(
       count: comboACount,
       ingredients: [
         { name: '生鸡架', count: comboACount },
-        ...(isFranchisePeriod ? [{ name: '官方拌料', count: comboACount }] : []),
+        ...(isFranchisePeriod ? [{ name: '官方拌料', count: comboACount }] : [{ name: '自研拌料', count: comboACount }]),
         { name: '海带结', count: comboACount },
       ],
     })
@@ -203,7 +196,7 @@ export function generateSKUDetails(
       count: comboBCount,
       ingredients: [
         { name: '生鸡架', count: comboBCount },
-        ...(isFranchisePeriod ? [{ name: '官方拌料', count: comboBCount }] : []),
+        ...(isFranchisePeriod ? [{ name: '官方拌料', count: comboBCount }] : [{ name: '自研拌料', count: comboBCount }]),
         { name: '贡菜', count: comboBCount },
       ],
     })
@@ -255,8 +248,7 @@ export function generateChannelOrderForecasts(
       forecastOrders = Math.max(0, Math.round(baseOrders * (1 + variance)))
     }
 
-    const isPlatformChannel = channel === 'mt' || channel === 'sg' || channel === 'jd'
-    const skuBreakdown = calculateIngredientsForOrders(forecastOrders, hasBeerLicense, isFranchisePeriod, enabledSkus, hasActiveEvent, hasSelfSauce, isPlatformChannel)
+    const skuBreakdown = calculateIngredientsForOrders(forecastOrders, hasBeerLicense, isFranchisePeriod, enabledSkus, hasActiveEvent, hasSelfSauce)
     const skuProducts = generateSKUProducts(forecastOrders)
     const skuDetails = generateSKUDetails(forecastOrders, hasBeerLicense, isFranchisePeriod)
 
@@ -297,9 +289,8 @@ export function deductIngredientsFromPlan(
 ): { newInventory: InventoryItem[]; shortages: string[] } {
   const totalIngredients: Partial<Record<IngredientType, number>> = {}
 
-  for (const [channel, orderCount] of fulfilledOrders) {
-    const isPlatformChannel = channel === 'mt' || channel === 'sg' || channel === 'jd'
-    const needed = calculateIngredientsForOrders(orderCount, hasBeerLicense, useOfficialSauce, enabledSkus, hasActiveEvent, hasSelfSauce, isPlatformChannel)
+  for (const [, orderCount] of fulfilledOrders) {
+    const needed = calculateIngredientsForOrders(orderCount, hasBeerLicense, useOfficialSauce, enabledSkus, hasActiveEvent, hasSelfSauce)
     for (const [type, qty] of Object.entries(needed)) {
       if (qty) {
         const t = type as IngredientType
@@ -363,6 +354,7 @@ export function calculateTotalNeededIngredients(
 
   for (const forecast of forecasts) {
     if (forecast.isCancelled) continue
+    if (forecast.isOutsourced) continue
 
     for (const [type, qty] of Object.entries(forecast.skuBreakdown)) {
       if (qty) {
