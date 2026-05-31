@@ -28,10 +28,6 @@ function randInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min
 }
 
-function randFloat(min: number, max: number): number {
-  return min + Math.random() * (max - min)
-}
-
 function generateSkills(): Skill {
   return {
     speechcraft: randInt(SKILL_RANGE[0], SKILL_RANGE[1]),
