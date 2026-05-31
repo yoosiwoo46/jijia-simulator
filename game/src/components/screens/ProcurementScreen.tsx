@@ -322,6 +322,7 @@ export default function ProcurementScreen() {
             <select value={selectedType} onChange={e => handleTypeChange(e.target.value as IngredientType)}>
               {Array.from(INGREDIENT_CONFIG_MAP.entries())
               .filter(([type]) => type !== 'self_sauce' || state.activeRecipeId !== null)
+              .filter(([type]) => type !== 'official_sauce' || state.isFranchisePeriod)
               .map(([type, cfg]) => {
                 const displayName = type === 'self_sauce' && state.activeRecipeId
                   ? `自研·${state.recipes.find(r => r.id === state.activeRecipeId)?.name || '拌料'}`
