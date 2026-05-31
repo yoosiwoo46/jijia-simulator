@@ -38,8 +38,8 @@ function calculateFlavorBalance(sauces: Record<SauceType, SauceLevel>): number {
 function calculateHarmony(sauces: Record<SauceType, SauceLevel>): number {
   const nonZero = getNonZeroSauces(sauces).map((s) => s.level)
   if (nonZero.length === 0) return 0
-  const mean = nonZero.reduce((a, b) => a + b, 0) / nonZero.length
-  const variance = nonZero.reduce((sum, v) => sum + (v - mean) ** 2, 0) / nonZero.length
+  const mean = nonZero.reduce((a: number, b) => a + b, 0) / nonZero.length
+  const variance = nonZero.reduce((sum: number, v) => sum + (v - mean) ** 2, 0) / nonZero.length
   const stdDev = Math.sqrt(variance)
   if (stdDev <= 0.3) return 9 + Math.random()
   if (stdDev <= 0.8) return 7 + Math.random() * 2
