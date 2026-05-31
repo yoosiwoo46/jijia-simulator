@@ -110,6 +110,7 @@ export type Employee = {
   mood: number
   isDualRole: boolean
   weekHired: number
+  isIntern?: boolean
 }
 
 export type Candidate = {
@@ -176,6 +177,7 @@ export type Platform = {
   marketingActive: boolean
   isDelegated: boolean
   extraMarketingCost: number
+  marketingBoost?: number
   weekJoined?: number
 }
 
@@ -336,6 +338,9 @@ export type ChannelOrderForecast = {
   skuDetails: SKUDetail[]
   /** 用户是否选择放弃该渠道 */
   isCancelled: boolean
+  isOutsourced?: boolean
+  outsourceType?: 'emergency' | 'longterm'
+  outsourceWeeksLeft?: number
 }
 
 export type LoanInfo = {
@@ -415,4 +420,8 @@ export type GameState = {
   talentSubsidyShown: boolean
   enabledSkus: string[]
   lastWeekEventMerchSold: number
+  totalInternsHired: number
+  totalOutsourceCount: number
+  watchPartyActive: boolean
+  watchPartyEvent: string | null
 }

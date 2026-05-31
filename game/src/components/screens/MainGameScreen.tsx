@@ -30,7 +30,7 @@ const MENU_ITEMS: MenuItem[] = [
   { key: 'review', phase: 'review', label: '经营周报', icon: '📊' },
   { key: 'procurement', phase: 'procurement', label: '采购原料', icon: '🛒' },
   { key: 'personnel', phase: 'personnel', label: '店员管理', icon: '👥' },
-  { key: 'marketing', phase: 'marketing', label: '平台营销', icon: '📱' },
+  { key: 'marketing', phase: 'marketing', label: '外卖平台', icon: '📱' },
   { key: 'research', phase: 'research', label: '自研拌料', icon: '🔬' },
   { key: 'furniture', phase: 'furniture', label: '店铺装潢', icon: '🪑' },
   { key: 'production', phase: 'advance', label: '生产计划', icon: '📋' },
@@ -108,7 +108,7 @@ function DianpingPopup({ ranking, playerRank, onConfirm }: {
   playerRank: number | null
   onConfirm: () => void
 }) {
-  const playerEntry = ranking.find(r => r.name === '你的店铺')
+  const playerEntry = ranking.find(r => r.name.includes('鸡架店'))
   const isOnList = playerRank !== null && playerRank <= 10
   const topList = isOnList ? ranking : ranking.slice(0, 10)
 
@@ -132,8 +132,8 @@ function DianpingPopup({ ranking, playerRank, onConfirm }: {
           <tbody>
             {topList.map((shop, i) => (
               <tr key={i} style={{
-                fontWeight: shop.name === '你的店铺' ? 'bold' : 'normal',
-                background: shop.name === '你的店铺' ? 'rgba(255,215,0,0.15)' : undefined,
+                fontWeight: shop.name.includes('鸡架店') ? 'bold' : 'normal',
+                background: shop.name.includes('鸡架店') ? 'rgba(255,215,0,0.15)' : undefined,
               }}>
                 <td>{i + 1 <= 3 ? ['🥇','🥈','🥉'][i] : i + 1}</td>
                 <td>{shop.name}</td>
@@ -267,13 +267,8 @@ export default function MainGameScreen() {
             <ProgressBar value={stamina.current} max={stamina.max} color={stamina.current <= 2 ? 'red' : 'green'} />
           </span>
           {currentTitle && (
-            <span className="stat-item">
+            <span className="stat-item" style={{ cursor: 'pointer' }} onClick={() => dispatch({ type: 'CYCLE_TITLE' })}>
               <span className="status-badge success">{currentTitle}</span>
-            </span>
-          )}
-          {state.activeLoans.length > 0 && (
-            <span className="stat-item">
-              <span className="status-badge warning">💳 待还{state.activeLoans.length}笔借款</span>
             </span>
           )}
         </div>
@@ -339,19 +334,6 @@ export default function MainGameScreen() {
         </nav>
 
         <main className="main-content">
-          {state.activeLoans.length > 0 && (
-            <div className="card" style={{ marginBottom: '12px', border: '2px solid #e8a735' }}>
-              <div className="card-title" style={{ color: '#e8a735' }}>💳 待还借款</div>
-              {state.activeLoans.map((loan, i) => (
-                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', fontFamily: 'var(--pixel-font)', fontSize: '12px' }}>
-                  <span>{loan.source}借款 {fmtMoney(loan.amount)}元（第{loan.dueWeek}周到期，还剩{loan.dueWeek - state.absoluteWeek}周）</span>
-                  <button className="btn btn-secondary btn-sm" onClick={() => dispatch({ type: 'REPAY_LOAN', payload: { loanIndex: i } })}>
-                    偿还{fmtMoney(loan.amount)}元
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
           {badges[activeScreen] && (
             <div style={{
               marginBottom: '12px', padding: '10px 14px',

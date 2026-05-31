@@ -51,6 +51,15 @@ export default function MarketingScreen() {
                   >
                     终止营销
                   </Button>
+                  {['world_cup', 'euro_cup', 'lol_worlds', 'champions_league'].includes(event.type) && (
+                    <Button
+                      variant={state.watchPartyActive && state.watchPartyEvent === event.type ? 'danger' : 'secondary'}
+                      size="sm"
+                      onClick={() => dispatch({ type: 'TOGGLE_WATCH_PARTY', payload: { eventType: event.type } })}
+                    >
+                      {state.watchPartyActive && state.watchPartyEvent === event.type ? '关闭观赛' : '到店观赛'}
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>

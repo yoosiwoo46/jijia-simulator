@@ -16,6 +16,7 @@ import type {
   Candidate,
   B2BMerchant,
   Skill,
+  Employee,
 } from '../types'
 import {
   createInitialState,
@@ -24,13 +25,13 @@ import {
   SHOP_CONFIG,
   RECIPE_RESEARCH_COST,
   HIRE_COST,
-  MARKETING_INVESTMENT_PER_WEEK,
   BARGAIN_REJECTION_PROBABILITY,
   CANDIDATE_COUNT_RANGE,
   PLATFORM_OPERATION_STAMINA_COST,
   PRIVATE_DOMAIN_OPERATION_STAMINA_COST,
   getShelfLife,
   EVENT_SCHEDULES,
+  INTERN_NAMES,
 } from './constants'
 import { advanceWeek } from './GameEngine'
 import { fmtMoney } from '../utils/format'
@@ -99,6 +100,10 @@ export type GameAction =
   | { type: 'SET_PRIVATE_DOMAIN_STRATEGY'; payload: { channel: PrivateDomainChannel; strategy: PrivateDomainStrategy } }
   | { type: 'REPAIR_FURNITURE'; payload: { furnitureType: FurnitureType } }
   | { type: 'STOP_MARKETING'; payload: { eventType: string } }
+  | { type: 'HIRE_INTERN' }
+  | { type: 'OUTSOURCE_CHANNEL'; payload: { channel: string; outsourceType: 'emergency' | 'longterm' } }
+  | { type: 'TOGGLE_WATCH_PARTY'; payload: { eventType: string } }
+  | { type: 'CYCLE_TITLE' }
 
 function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
@@ -162,6 +167,10 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case 'RECRUIT_EMPLOYEES': {
       if (state.stamina.current < 1) return state
       if (state.cash < HIRE_COST) return state
+      const regularCount = state.employees.filter(e => !e.isIntern).length
+      if (regularCount >= state.shop.maxStaff) {
+        return { ...state, notifications: [...state.notifications, '正式员工已达上限，无法继续招募'] }
+      }
       const count = randInt(CANDIDATE_COUNT_RANGE[0], CANDIDATE_COUNT_RANGE[1])
       const candidates = generateCandidates(count)
       return {
@@ -199,6 +208,13 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case 'FIRE_EMPLOYEE': {
       const emp = state.employees.find(e => e.id === action.payload.employeeId)
       if (!emp) return state
+      if (emp.isIntern) {
+        return {
+          ...state,
+          employees: state.employees.filter(e => e.id !== action.payload.employeeId),
+          notifications: [...state.notifications, `实习生${emp.name}已辞退，无需支付遣散费`],
+        }
+      }
       const severance = emp.salary
       if (state.cash < severance) {
         return { ...state, notifications: [...state.notifications, `资金不足，无法支付${emp.name}的遣散费${fmtMoney(severance)}元`] }
@@ -329,13 +345,24 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case 'TOGGLE_PLATFORM_MARKETING': {
       const platform = state.platforms.find(p => p.id === action.payload.platformId)
       if (!platform) return state
-      if (!platform.marketingActive && state.cash < MARKETING_INVESTMENT_PER_WEEK) return state
+      if (!platform.marketingActive) {
+        if (state.cash < 20000) return state
+        const boost = 0.2 + Math.random() * 0.1
+        return {
+          ...state,
+          cash: state.cash - 20000,
+          platforms: state.platforms.map(p =>
+            p.id === action.payload.platformId ? { ...p, marketingActive: true, marketingBoost: boost } : p
+          ),
+          notifications: [...state.notifications, `用增达人已开启！花费${fmtMoney(20000)}元，基础订单量提升${Math.round(boost * 100)}%`],
+        }
+      }
       return {
         ...state,
-        cash: platform.marketingActive ? state.cash : state.cash - MARKETING_INVESTMENT_PER_WEEK,
         platforms: state.platforms.map(p =>
-          p.id === action.payload.platformId ? { ...p, marketingActive: !p.marketingActive } : p
+          p.id === action.payload.platformId ? { ...p, marketingActive: false, marketingBoost: 0 } : p
         ),
+        notifications: [...state.notifications, '用增达人已关闭'],
       }
     }
 
@@ -789,6 +816,73 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         },
         notifications: [...state.notifications, `维修${cfg.name}×${fItem.brokenCount}，花费${fmtMoney(repairCost)}元`],
       }
+    }
+
+    case 'HIRE_INTERN': {
+      if (state.cash < 2000 || state.stamina.current < 1) return state
+      const usedNames = new Set(state.employees.map(e => e.name))
+      const available = INTERN_NAMES.filter(n => !usedNames.has(n))
+      if (available.length === 0) return state
+      const name = available[Math.floor(Math.random() * available.length)]
+      const intern: Employee = {
+        id: `intern_${Date.now()}_${Math.random()}`,
+        name,
+        skills: {
+          speechcraft: Math.floor(Math.random() * 3) + 1,
+          patience: Math.floor(Math.random() * 3) + 1,
+          stamina_skill: Math.floor(Math.random() * 5) + 3,
+          carefulness: Math.floor(Math.random() * 3) + 1,
+          speed: Math.floor(Math.random() * 5) + 3,
+        },
+        position: 'kitchen',
+        salary: 2000,
+        mood: 80,
+        isDualRole: false,
+        weekHired: state.absoluteWeek,
+        isIntern: true,
+      }
+      return {
+        ...state,
+        cash: state.cash - 2000,
+        stamina: { ...state.stamina, current: state.stamina.current - 1 },
+        employees: [...state.employees, intern],
+        totalInternsHired: state.totalInternsHired + 1,
+        notifications: [...state.notifications, `招募实习生${name}，月薪2000元`],
+      }
+    }
+
+    case 'OUTSOURCE_CHANNEL': {
+      const { channel, outsourceType } = action.payload
+      const forecast = state.channelOrderForecasts.find(f => f.channel === channel)
+      if (!forecast) return state
+      const weeksLeft = outsourceType === 'emergency' ? 1 : 12
+      return {
+        ...state,
+        channelOrderForecasts: state.channelOrderForecasts.map(f =>
+          f.channel === channel
+            ? { ...f, isOutsourced: true, outsourceType, outsourceWeeksLeft: weeksLeft }
+            : f
+        ),
+        totalOutsourceCount: state.totalOutsourceCount + 1,
+        notifications: [...state.notifications, `${outsourceType === 'emergency' ? '紧急' : '长期'}外包${channel}渠道订单`],
+      }
+    }
+
+    case 'TOGGLE_WATCH_PARTY': {
+      const isActive = state.watchPartyActive && state.watchPartyEvent === action.payload.eventType
+      return {
+        ...state,
+        watchPartyActive: !isActive,
+        watchPartyEvent: !isActive ? action.payload.eventType : null,
+        notifications: [...state.notifications, !isActive ? '开启到店观赛，活动期间到店订单+200%' : '关闭到店观赛'],
+      }
+    }
+
+    case 'CYCLE_TITLE': {
+      if (state.titles.length === 0) return state
+      const currentIdx = state.currentTitle ? state.titles.indexOf(state.currentTitle) : -1
+      const nextIdx = (currentIdx + 1) % state.titles.length
+      return { ...state, currentTitle: state.titles[nextIdx] }
     }
 
     default:

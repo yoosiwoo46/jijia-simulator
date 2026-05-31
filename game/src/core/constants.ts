@@ -22,6 +22,8 @@ export const INITIAL_CASH = 150000
 export const FRANCHISE_FEE = 20000
 export const RECIPE_RESEARCH_COST = 10000
 export const HIRE_COST = 2000
+export const INTERN_SALARY = 2000
+export const INTERN_HIRE_COST = 2000
 export const MARKETING_INVESTMENT_PER_WEEK = 2100
 export const B2B_DELIVERY_FEE_PER_MERCHANT = 100
 export const CANCELLED_ORDER_THRESHOLD = 50
@@ -443,6 +445,7 @@ export const PLATFORM_CONFIGS: Platform[] = [
     marketingActive: false,
     isDelegated: false,
     extraMarketingCost: 0,
+    marketingBoost: 0,
   },
   {
     id: 'mt',
@@ -457,6 +460,7 @@ export const PLATFORM_CONFIGS: Platform[] = [
     marketingActive: false,
     isDelegated: false,
     extraMarketingCost: 0,
+    marketingBoost: 0,
   },
   {
     id: 'sg',
@@ -471,6 +475,7 @@ export const PLATFORM_CONFIGS: Platform[] = [
     marketingActive: false,
     isDelegated: false,
     extraMarketingCost: 0,
+    marketingBoost: 0,
   },
 ]
 
@@ -763,6 +768,8 @@ export const EMPLOYEE_NAMES = {
   sanguo: ['刘备', '关羽', '张飞', '赵云', '诸葛亮', '曹操', '孙权', '周瑜', '吕布', '貂蝉', '典韦', '许褚'],
 }
 
+export const INTERN_NAMES = ['小明', '小红', '小华', '小李', '小张', '小王', '小赵', '小陈', '小刘', '小杨', '小周', '小吴', '小孙', '小朱', '小郑']
+
 export const SALARY_RANGE: [number, number] = [3500, 4500]
 
 export const SKILL_RANGE: [number, number] = [1, 10]
@@ -949,5 +956,9 @@ export function createInitialState(): GameState {
     talentSubsidyShown: false,
     enabledSkus: SKU_CONFIGS.map(s => s.id),
     lastWeekEventMerchSold: 0,
+    totalInternsHired: 0,
+    totalOutsourceCount: 0,
+    watchPartyActive: false,
+    watchPartyEvent: null,
   }
 }

@@ -57,6 +57,7 @@ import {
   BANKRUPTCY_LOAN_REPAY_WEEKS,
   MAX_BANKRUPTCIES,
   CHANNEL_LABELS,
+  MOOD_RESIGN_THRESHOLD,
 } from './constants'
 import { calculateMoodChange, shouldResign } from '../systems/PersonnelSystem'
 import { fmtMoney } from '../utils/format'
@@ -125,7 +126,8 @@ export function calculateKitchenCapacity(
       ? worker.skills.stamina_skill * (1 - DUAL_ROLE_EFFICIENCY_PENALTY)
       : worker.skills.stamina_skill
 
-    const dailyStandard = 15 * (effectiveStamina + effectiveSpeed)
+    const outputMultiplier = worker.isIntern ? 8 : 15
+    const dailyStandard = outputMultiplier * (effectiveStamina + effectiveSpeed)
     const dailyMax = Math.round(dailyStandard * 1.4)
     standardCapacity += dailyStandard * 7
     maxCapacity += dailyMax * 7
@@ -164,6 +166,7 @@ export function generateOrdersForChannel(channel: string, state: GameState): num
       } else {
         orders = Math.round(baseOrders * (platform.rating / 5))
       }
+      orders = Math.round(orders * (1 + (platform.marketingBoost || 0)))
       return Math.max(0, applyVariance(orders, 0.3))
     }
     case 'sg': {
@@ -177,6 +180,7 @@ export function generateOrdersForChannel(channel: string, state: GameState): num
       } else {
         orders = Math.round(baseOrders * (platform.rating / 5))
       }
+      orders = Math.round(orders * (1 + (platform.marketingBoost || 0)))
       return Math.max(0, applyVariance(orders, 0.3))
     }
     case 'jd': {
@@ -190,6 +194,7 @@ export function generateOrdersForChannel(channel: string, state: GameState): num
       } else {
         orders = Math.round(baseOrders * (platform.rating / 5))
       }
+      orders = Math.round(orders * (1 + (platform.marketingBoost || 0)))
       return Math.max(0, applyVariance(orders, 0.3))
     }
     case 'offline': {
@@ -197,6 +202,7 @@ export function generateOrdersForChannel(channel: string, state: GameState): num
       let baseOrders = maxCustomers * 21
       const hasAdScreen = state.shop.furniture.some((f) => f.type === 'ad_screen' && f.count > 0)
       if (hasAdScreen) baseOrders = Math.round(baseOrders * 1.1)
+      if (state.watchPartyActive) baseOrders = Math.round(baseOrders * 3)
       return Math.max(0, applyVariance(baseOrders, 0.2))
     }
     case 'private_domain': {
@@ -273,7 +279,7 @@ function calculatePlatformRevenue(orders: number, platformId: PlatformId, state:
   const basePrice = calculateAverageOrderPrice(state.hasBeerLicense)
   const adjustment = state.weeklyPriceAdjustments[platformId] || 0
   const effectivePrice = Math.max(1, basePrice + adjustment)
-  const commissionRates: Record<PlatformId, number> = { sg: 0.15, mt: 0.15, jd: 0.15 }
+  const commissionRates: Record<PlatformId, number> = { sg: 0.10, mt: 0.15, jd: 0.10 }
   let revenue = Math.round(orders * effectivePrice * (1 - (commissionRates[platformId] || 0.2)))
 
   const platform = state.platforms.find((p) => p.id === platformId)
@@ -518,18 +524,6 @@ export function calculateTemperatureControlPenalty(shop: Shop, month: number): n
   return randInt(1, 3)
 }
 
-function updateTitles(state: GameState): { titles: string[]; currentTitle: string | null } {
-  const earnedTitles = TITLE_THRESHOLDS.filter(
-    (t) => state.totalCashEarned >= t.cashThreshold,
-  ).map((t) => t.name)
-
-  const currentTitle = earnedTitles.length > 0
-    ? earnedTitles[earnedTitles.length - 1]
-    : state.currentTitle
-
-  return { titles: earnedTitles, currentTitle }
-}
-
 function advanceGameTime(time: GameTime): GameTime {
   let { year, month, week } = time
   week += 1
@@ -624,8 +618,8 @@ export function advanceWeek(state: GameState): GameState {
   const fulfilledOrders = new Map<string, number>()
   let remainingCapacity = totalCapacity
   const cancelledOrders: Record<string, number> = {}
+  const outsourcedOrders: Record<string, number> = {}
 
-  // Week 1: no production, no orders fulfilled
   if (s.absoluteWeek === 1) {
     for (const channel of CHANNEL_PRIORITY) {
       const availableOrders = ordersByChannel[channel] || 0
@@ -637,6 +631,13 @@ export function advanceWeek(state: GameState): GameState {
     for (const channel of CHANNEL_PRIORITY) {
       const availableOrders = ordersByChannel[channel] || 0
       if (availableOrders <= 0) continue
+
+      const forecast = s.channelOrderForecasts.find(f => f.channel === channel)
+      if (forecast?.isOutsourced) {
+        fulfilledOrders.set(channel, availableOrders)
+        outsourcedOrders[channel] = availableOrders
+        continue
+      }
 
       const isPlatformChannel = channel === 'mt' || channel === 'sg' || channel === 'jd'
       const hasSelfSauce = s.activeRecipeId !== null
@@ -675,8 +676,10 @@ export function advanceWeek(state: GameState): GameState {
 
   // ---- Step 4: Calculate total orders for overtime ----
   let totalFulfilledOrders = 0
-  for (const [, count] of fulfilledOrders) {
-    totalFulfilledOrders += count
+  for (const [channel, count] of fulfilledOrders) {
+    if (!outsourcedOrders[channel]) {
+      totalFulfilledOrders += count
+    }
   }
 
   // Fix #3: Only charge overtime when actual orders exceed standard capacity
@@ -687,9 +690,16 @@ export function advanceWeek(state: GameState): GameState {
     .filter(item => item.type === 'event_merch')
     .reduce((sum, item) => sum + item.quantity, 0)
 
+  const nonOutsourcedOrders = new Map<string, number>()
+  for (const [channel, count] of fulfilledOrders) {
+    if (!outsourcedOrders[channel]) {
+      nonOutsourcedOrders.set(channel, count)
+    }
+  }
+
   const { newInventory: afterDeduction, shortages } = deductIngredientsFromPlan(
     s.inventory,
-    fulfilledOrders,
+    nonOutsourcedOrders,
     s.hasBeerLicense,
     s.isFranchisePeriod,
     s.enabledSkus,
@@ -725,9 +735,14 @@ export function advanceWeek(state: GameState): GameState {
   const lastWeekSales: ChannelSales[] = []
 
   // B2B revenue
-  const b2bRevenue = s.b2bMerchants
+  let b2bRevenue = s.b2bMerchants
     .filter((m) => m.isActive && fulfilledOrders.has('b2b'))
     .reduce((sum, m) => sum + calculateB2BRevenue(m, s), 0)
+  const b2bForecast = s.channelOrderForecasts.find(f => f.channel === 'b2b')
+  if (b2bForecast?.isOutsourced) {
+    const outsourceRate = b2bForecast.outsourceType === 'emergency' ? 0.85 : 0.80
+    b2bRevenue = Math.round(b2bRevenue * outsourceRate)
+  }
   if (fulfilledOrders.has('b2b')) {
     totalRevenue += b2bRevenue
     lastWeekSales.push({
@@ -743,11 +758,18 @@ export function advanceWeek(state: GameState): GameState {
   let totalDeliveryFee = 0
   for (const pid of PLATFORM_ORDER_RANKING) {
     if (fulfilledOrders.has(pid)) {
-      const rev = calculatePlatformRevenue(fulfilledOrders.get(pid)!, pid, s)
+      let rev = calculatePlatformRevenue(fulfilledOrders.get(pid)!, pid, s)
+      const forecast = s.channelOrderForecasts.find(f => f.channel === pid)
+      if (forecast?.isOutsourced) {
+        const outsourceRate = forecast.outsourceType === 'emergency' ? 0.85 : 0.80
+        rev = Math.round(rev * outsourceRate)
+      }
       totalRevenue += rev
       const platform = s.platforms.find((p) => p.id === pid)
-      const feePerOrder = platform?.deliveryMethod === 'self_delivery' ? 0.4 : 1
-      totalDeliveryFee += fulfilledOrders.get(pid)! * feePerOrder
+      if (!outsourcedOrders[pid]) {
+        const feePerOrder = platform?.deliveryMethod === 'self_delivery' ? 0.4 : 1
+        totalDeliveryFee += fulfilledOrders.get(pid)! * feePerOrder
+      }
       lastWeekSales.push({
         channel: pid,
         predictedOrders: ordersByChannel[pid] || 0,
@@ -761,7 +783,12 @@ export function advanceWeek(state: GameState): GameState {
 
   // Offline revenue
   if (fulfilledOrders.has('offline')) {
-    const rev = calculateOfflineRevenue(fulfilledOrders.get('offline')!, s)
+    let rev = calculateOfflineRevenue(fulfilledOrders.get('offline')!, s)
+    const forecast = s.channelOrderForecasts.find(f => f.channel === 'offline')
+    if (forecast?.isOutsourced) {
+      const outsourceRate = forecast.outsourceType === 'emergency' ? 0.85 : 0.80
+      rev = Math.round(rev * outsourceRate)
+    }
     totalRevenue += rev
     lastWeekSales.push({
       channel: 'offline',
@@ -774,7 +801,12 @@ export function advanceWeek(state: GameState): GameState {
 
   // Private domain revenue
   if (fulfilledOrders.has('private_domain')) {
-    const rev = calculatePrivateDomainRevenue(fulfilledOrders.get('private_domain')!, s)
+    let rev = calculatePrivateDomainRevenue(fulfilledOrders.get('private_domain')!, s)
+    const forecast = s.channelOrderForecasts.find(f => f.channel === 'private_domain')
+    if (forecast?.isOutsourced) {
+      const outsourceRate = forecast.outsourceType === 'emergency' ? 0.85 : 0.80
+      rev = Math.round(rev * outsourceRate)
+    }
     totalRevenue += rev
     lastWeekSales.push({
       channel: 'private_domain',
@@ -812,8 +844,14 @@ export function advanceWeek(state: GameState): GameState {
     if (!platform) continue
     const orderCount = fulfilledOrders.get(pid)!
     const reviewCount = Math.max(1, Math.round(orderCount * 0.05))
+    const forecast = s.channelOrderForecasts.find(f => f.channel === pid)
     for (let i = 0; i < reviewCount; i++) {
-      newReviews.push(generateReview(pid, platform.deliveryMethod))
+      const review = generateReview(pid, platform.deliveryMethod)
+      if (forecast?.isOutsourced && Math.random() < 0.05) {
+        review.isPositive = false
+        review.tags.taste = 'bad'
+      }
+      newReviews.push(review)
     }
   }
 
@@ -1057,7 +1095,7 @@ export function advanceWeek(state: GameState): GameState {
           score: shop.score,
           bonus: getBonusText(i + 1, shop.score),
         })),
-        { name: '你的店铺', score: playerScore, bonus: '未上榜' },
+        { name: `${s.shopName || '鸡架'}鸡架店`, score: playerScore, bonus: '未上榜' },
       ]
       s.dianpingRank = null
       s.dianpingBonus = null
@@ -1068,10 +1106,10 @@ export function advanceWeek(state: GameState): GameState {
         otherShops.push({ name: otherNames[i], score: Math.min(10.0, score) })
       }
 
-      const allShops = [...otherShops, { name: '你的店铺', score: playerScore }]
+      const allShops = [...otherShops, { name: `${s.shopName || '鸡架'}鸡架店`, score: playerScore }]
       allShops.sort((a, b) => b.score - a.score)
 
-      const playerRank = allShops.findIndex(shop => shop.name === '你的店铺') + 1
+      const playerRank = allShops.findIndex(shop => shop.name === `${s.shopName || '鸡架'}鸡架店`) + 1
       s.dianpingScore = playerScore
       s.dianpingRank = playerRank
 
@@ -1106,12 +1144,20 @@ export function advanceWeek(state: GameState): GameState {
 
   // ---- Step 14: Update employee moods, handle resignations ----
   const resignedEmployeeIds: string[] = []
+  const internResignedIds: string[] = []
   s.employees = s.employees.map((emp) => {
     const moodChange = calculateMoodChange(emp, s.shop, s.gameTime.month)
     const newMood = Math.max(0, Math.min(100, emp.mood + moodChange))
 
     if (emp.isDualRole && Math.random() < DUAL_ROLE_COMPLAINT_PROBABILITY) {
       notifications.push(`${emp.name}因身兼两职产生抱怨`)
+    }
+
+    if (emp.isIntern) {
+      if (newMood <= MOOD_RESIGN_THRESHOLD && Math.random() < 0.5) {
+        internResignedIds.push(emp.id)
+      }
+      return { ...emp, mood: newMood }
     }
 
     if (shouldResign({ ...emp, mood: newMood })) {
@@ -1121,6 +1167,14 @@ export function advanceWeek(state: GameState): GameState {
 
     return { ...emp, mood: newMood }
   })
+
+  if (internResignedIds.length > 0) {
+    const internNames = s.employees
+      .filter((e) => internResignedIds.includes(e.id))
+      .map((e) => e.name)
+    s.employees = s.employees.filter((e) => !internResignedIds.includes(e.id))
+    notifications.push(`${internNames.join('、')}实习生离职了`)
+  }
 
   if (resignedEmployeeIds.length > 0) {
     const resignedNames = s.employees
@@ -1216,9 +1270,33 @@ export function advanceWeek(state: GameState): GameState {
   }
 
   // ---- Step 16: Update titles ----
-  const { titles, currentTitle } = updateTitles(s)
-  s.titles = titles
-  s.currentTitle = currentTitle
+  const newTitles = [...s.titles]
+  if (s.watchPartyActive && !newTitles.includes('观赛圣地')) newTitles.push('观赛圣地')
+  if (s.totalOutsourceCount >= 10 && !newTitles.includes('外包达人')) newTitles.push('外包达人')
+  if (s.totalInternsHired >= 10 && !newTitles.includes('实习证明')) newTitles.push('实习证明')
+  const weeklyOnlineOrders = s.platforms.filter(p => p.isJoined).reduce((sum, p) => {
+    const forecast = s.channelOrderForecasts.find(f => f.channel === p.id)
+    return sum + (forecast?.orders || 0)
+  }, 0)
+  if (weeklyOnlineOrders > 2000 && !newTitles.includes('专做外卖')) newTitles.push('专做外卖')
+  const cashTitles = TITLE_THRESHOLDS.filter(
+    (t) => s.totalCashEarned >= t.cashThreshold,
+  ).map((t) => t.name)
+  for (const t of cashTitles) {
+    if (!newTitles.includes(t)) newTitles.push(t)
+  }
+  s.titles = newTitles
+  if (!s.currentTitle && newTitles.length > 0) s.currentTitle = newTitles[0]
+
+  // Decrement outsource weeks
+  s.channelOrderForecasts = s.channelOrderForecasts.map(f => {
+    if (!f.isOutsourced || !f.outsourceWeeksLeft) return f
+    const weeksLeft = f.outsourceWeeksLeft - 1
+    if (weeksLeft <= 0) {
+      return { ...f, isOutsourced: false, outsourceType: undefined, outsourceWeeksLeft: undefined }
+    }
+    return { ...f, outsourceWeeksLeft: weeksLeft }
+  })
 
   // ---- Step 17: Check victory/defeat ----
   if (checkVictoryConditions(s)) {
@@ -1252,7 +1330,21 @@ export function advanceWeek(state: GameState): GameState {
   s.privateDomainOperationStaminaUsed = false
 
   // ---- Step 21: Fix #14 - Generate forecasts for next week ----
+  const previousOutsourceState = new Map<string, { isOutsourced?: boolean; outsourceType?: 'emergency' | 'longterm'; outsourceWeeksLeft?: number }>()
+  for (const f of s.channelOrderForecasts) {
+    if (f.isOutsourced) {
+      previousOutsourceState.set(f.channel, { isOutsourced: f.isOutsourced, outsourceType: f.outsourceType, outsourceWeeksLeft: f.outsourceWeeksLeft })
+    }
+  }
   s.channelOrderForecasts = generateChannelOrderForecasts(ordersByChannel, s.hasBeerLicense, s.isFranchisePeriod, s.weeklyPriceAdjustments, s.enabledSkus, hasActiveEvent, s.activeRecipeId !== null)
+  for (const forecast of s.channelOrderForecasts) {
+    const prev = previousOutsourceState.get(forecast.channel)
+    if (prev) {
+      forecast.isOutsourced = prev.isOutsourced
+      forecast.outsourceType = prev.outsourceType
+      forecast.outsourceWeeksLeft = prev.outsourceWeeksLeft
+    }
+  }
 
   // ---- Step 22: Reset fulfilledOrders to empty Map ----
   s.fulfilledOrders = new Map()

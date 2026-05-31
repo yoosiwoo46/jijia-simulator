@@ -26,7 +26,10 @@ const SKILL_LABELS: Record<string, string> = {
 export default function PersonnelScreen() {
   const { state, dispatch } = useGame()
   const { employees, pendingHires, cash, stamina } = state
+  const regularEmployeeCount = employees.filter(e => !e.isIntern).length
+  const atMaxStaff = regularEmployeeCount >= state.shop.maxStaff
   const [activeTab, setActiveTab] = useState<TabKey>('recruit')
+  const [fireTarget, setFireTarget] = useState<{id: string; name: string; salary: number} | null>(null)
 
   const tabs: { key: TabKey; label: string }[] = [
     { key: 'recruit', label: '招募新员工' },
@@ -59,10 +62,18 @@ export default function PersonnelScreen() {
               <Button
                 variant="primary"
                 size="sm"
-                disabled={cash < 2000 || stamina.current < 1}
+                disabled={cash < 2000 || stamina.current < 1 || atMaxStaff}
                 onClick={() => dispatch({ type: 'RECRUIT_EMPLOYEES' })}
               >
-                招募员工（消耗2000元+1体力）
+                招募员工（消耗2000元+1体力）{atMaxStaff ? ' [编制已满]' : ''}
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={cash < 2000 || stamina.current < 1}
+                onClick={() => dispatch({ type: 'HIRE_INTERN' })}
+              >
+                招募实习生（2000元+1体力）
               </Button>
             </div>
           ) : (
@@ -122,7 +133,7 @@ export default function PersonnelScreen() {
             employees.map(emp => (
               <div key={emp.id} className="employee-card">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span className="employee-name">{emp.name}</span>
+                  <span className="employee-name">{emp.name}{emp.isIntern ? '(实习生)' : ''}</span>
                   <StatusBadge status={emp.position === 'none' ? 'warning' : 'success'} text={POSITION_LABELS[emp.position]} />
                 </div>
                 <div className="mt-8" style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -137,13 +148,15 @@ export default function PersonnelScreen() {
                       <option value="kitchen">后厨</option>
                     </select>
                   </div>
-                  <Button
-                    variant={emp.isDualRole ? 'danger' : 'secondary'}
-                    size="sm"
-                    onClick={() => dispatch({ type: 'TOGGLE_DUAL_ROLE', payload: { employeeId: emp.id } })}
-                  >
-                    {emp.isDualRole ? '取消兼职' : '开启兼职'}
-                  </Button>
+                  {!emp.isIntern && (
+                    <Button
+                      variant={emp.isDualRole ? 'danger' : 'secondary'}
+                      size="sm"
+                      onClick={() => dispatch({ type: 'TOGGLE_DUAL_ROLE', payload: { employeeId: emp.id } })}
+                    >
+                      {emp.isDualRole ? '取消兼职' : '开启兼职'}
+                    </Button>
+                  )}
                 </div>
                 {emp.isDualRole && (
                   <div className="text-sm text-red mt-8">
@@ -166,7 +179,7 @@ export default function PersonnelScreen() {
             employees.map(emp => (
               <div key={emp.id} className="employee-card">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span className="employee-name">{emp.name}</span>
+                  <span className="employee-name">{emp.name}{emp.isIntern ? '(实习生)' : ''}</span>
                   <StatusBadge
                     status={emp.mood >= 70 ? 'success' : emp.mood >= 40 ? 'warning' : 'danger'}
                     text={`心情 ${emp.mood}`}
@@ -182,7 +195,7 @@ export default function PersonnelScreen() {
                 </div>
                 {emp.mood <= 30 && (
                   <div className="text-red text-sm mt-8">
-                    ⚠️ 心情过低，员工可能辞职！
+                    ⚠️ 心情过低，{emp.isIntern ? '实习生可能离职' : '员工可能辞职'}！
                   </div>
                 )}
                 <div className="mt-8 inline-flex" style={{ gap: '8px' }}>
@@ -206,12 +219,14 @@ export default function PersonnelScreen() {
                     variant="danger"
                     size="sm"
                     onClick={() => {
-                      if (confirm(`确认辞退${emp.name}？需支付遣散费${fmtMoney(emp.salary)}元`)) {
+                      if (emp.isIntern) {
+                        dispatch({ type: 'FIRE_EMPLOYEE', payload: { employeeId: emp.id } })
+                      } else if (confirm(`确认辞退${emp.name}？需支付遣散费${fmtMoney(emp.salary)}元`)) {
                         dispatch({ type: 'FIRE_EMPLOYEE', payload: { employeeId: emp.id } })
                       }
                     }}
                   >
-                    辞退（支付{fmtMoney(emp.salary)}元）
+                    {emp.isIntern ? '辞退（无遣散费）' : `辞退（支付${fmtMoney(emp.salary)}元）`}
                   </Button>
                 </div>
               </div>
@@ -245,7 +260,7 @@ export default function PersonnelScreen() {
               <tbody>
                 {employees.map(emp => (
                   <tr key={emp.id}>
-                    <td>{emp.name}</td>
+                    <td>{emp.name}{emp.isIntern ? '(实习生)' : ''}</td>
                     <td>{POSITION_LABELS[emp.position]}</td>
                     <td>{emp.skills.speechcraft}</td>
                     <td>{emp.skills.patience}</td>
@@ -259,12 +274,43 @@ export default function PersonnelScreen() {
                         text={`${emp.mood}`}
                       />
                     </td>
-                    <td>{emp.isDualRole ? '✅' : '—'}</td>
+                    <td>{emp.isIntern ? '—' : (emp.isDualRole ? '✅' : '—')}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           )}
+        </div>
+      )}
+
+      {fireTarget && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 1000,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'rgba(0,0,0,0.7)',
+        }}>
+          <div style={{
+            maxWidth: '360px', width: '100%', background: 'var(--color-cream, #fdf6e3)',
+            borderRadius: '12px', padding: '24px', textAlign: 'center',
+          }}>
+            <div style={{ fontFamily: 'var(--pixel-font)', fontSize: '16px', fontWeight: 'bold', color: 'var(--color-gold)', marginBottom: '16px' }}>
+              确认辞退
+            </div>
+            <div style={{ fontFamily: 'var(--pixel-font)', fontSize: '13px', lineHeight: '2', color: '#333', marginBottom: '16px' }}>
+              确认辞退{fireTarget.name}？<br/>需支付遣散费{fmtMoney(fireTarget.salary)}元
+            </div>
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+              <button className="btn btn-primary btn-sm" onClick={() => {
+                dispatch({ type: 'FIRE_EMPLOYEE', payload: { employeeId: fireTarget.id } })
+                setFireTarget(null)
+              }}>
+                确认辞退
+              </button>
+              <button className="btn btn-secondary btn-sm" onClick={() => setFireTarget(null)}>
+                取消
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -40,28 +40,32 @@ export default function StoryScreen() {
       {showVersion && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 1000,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: 'rgba(0,0,0,0.7)', padding: '16px',
+          background: 'var(--color-cream, #fdf6e3)',
+          display: 'flex', flexDirection: 'column',
+          padding: '40px 32px 32px',
         }}>
-          <div style={{
-            maxWidth: '380px', width: '100%', background: 'var(--color-cream, #fdf6e3)',
-            borderRadius: '12px', padding: '24px', textAlign: 'center',
-          }}>
-            <div style={{ fontFamily: 'var(--pixel-font)', fontSize: '16px', fontWeight: 'bold', color: 'var(--color-gold)', marginBottom: '16px' }}>
+          <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+            <div style={{ fontFamily: 'var(--pixel-font)', fontSize: '24px', fontWeight: 'bold', color: 'var(--color-gold)' }}>
               260530-V1.0游戏上线
             </div>
-            <div style={{ fontFamily: 'var(--pixel-font)', fontSize: '12px', lineHeight: '2', color: '#333', marginBottom: '16px', textAlign: 'left' }}>
-              1. 采购原料、管理店员、研发配方，经营你的鸡架店<br/>
-              2. 拓展外卖平台与B端客户，打造商业版图<br/>
-              3. 目标：收购总部，成为真正的鸡架之王！
+          </div>
+          <div style={{ fontFamily: 'var(--pixel-font)', fontSize: '14px', lineHeight: '2.2', color: '#333', maxWidth: '480px' }}>
+            <div style={{ marginBottom: '12px' }}>
+              <strong>核心玩法</strong>
             </div>
-            <div style={{ fontFamily: 'var(--pixel-font)', fontSize: '10px', lineHeight: '1.8', color: '#999', marginBottom: '16px', textAlign: 'left' }}>
+            <div>1. 采购原料、管理店员、研发配方，经营你的鸡架店</div>
+            <div>2. 拓展外卖平台与B端客户，打造商业版图</div>
+            <div>3. 目标：收购总部，成为真正的鸡架之王！</div>
+          </div>
+          <div style={{ flex: 1 }} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+            <div style={{ fontFamily: 'var(--pixel-font)', fontSize: '11px', lineHeight: '2', color: '#666' }}>
               PM Owner：鼠<br/>
               RD Owner：Trae Solo x glm5.1<br/>
               设计：Trae Solo x glm5.1<br/>
               QA：鼠 & Trae Solo x glm5.1
             </div>
-            <button className="btn btn-primary btn-sm" onClick={() => setShowVersion(false)}>
+            <button className="btn btn-primary" onClick={() => setShowVersion(false)}>
               关闭
             </button>
           </div>

@@ -5,10 +5,11 @@ import { fmtMoney } from '../../utils/format'
 import { calculateKitchenCapacity } from '../../core/GameEngine'
 import { calculateTotalNeededIngredients } from '../../systems/OrderSystem'
 import StatusBadge from '../ui/StatusBadge'
+import Button from '../ui/Button'
 import type { IngredientType } from '../../types'
 
 export default function ProductionScreen() {
-  const { state } = useGame()
+  const { state, dispatch } = useGame()
   const { channelOrderForecasts, inventory, hasBeerLicense, isFranchisePeriod, employees } = state
 
   const inventoryMap = useMemo(() => {
@@ -40,7 +41,8 @@ export default function ProductionScreen() {
       .reduce((sum, w) => {
         const speed = w.isDualRole ? w.skills.speed * 0.85 : w.skills.speed
         const stamina = w.isDualRole ? w.skills.stamina_skill * 0.85 : w.skills.stamina_skill
-        return sum + 15 * (stamina + speed) * 7
+        const multiplier = w.isIntern ? 8 : 15
+        return sum + multiplier * (stamina + speed) * 7
       }, 0)
     return { max: totalCapacity, standard: Math.round(standardCap) }
   }, [employees])
@@ -115,55 +117,24 @@ export default function ProductionScreen() {
                   </div>
                 </div>
               ))}
+                <div style={{ marginTop: '6px', display: 'flex', gap: '6px' }}>
+                  {forecast.isOutsourced ? (
+                    <span style={{ fontFamily: 'var(--pixel-font)', fontSize: '11px', color: '#e67e22' }}>
+                      🔄 已外包（{forecast.outsourceType === 'emergency' ? '紧急' : '长期'}，剩余{forecast.outsourceWeeksLeft}周）
+                    </span>
+                  ) : (
+                    <>
+                      <Button variant="secondary" size="sm" onClick={() => dispatch({ type: 'OUTSOURCE_CHANNEL', payload: { channel: forecast.channel, outsourceType: 'emergency' } })}>
+                        紧急外包（收入×85%）
+                      </Button>
+                      <Button variant="secondary" size="sm" onClick={() => dispatch({ type: 'OUTSOURCE_CHANNEL', payload: { channel: forecast.channel, outsourceType: 'longterm' } })}>
+                        长期外包（收入×80%，3个月）
+                      </Button>
+                    </>
+                  )}
+                </div>
             </div>
           ))
-        )}
-      </div>
-
-      <div className="card">
-        <div className="card-title">原料需求总览</div>
-        {Object.keys(totalNeeded).length === 0 ? (
-          <p className="text-gray text-sm">暂无原料需求</p>
-        ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>原料</th>
-                <th>需要量</th>
-                <th>当前库存</th>
-                <th>状态</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Object.entries(totalNeeded)
-                .filter(([, qty]) => qty && qty > 0)
-                .sort(([a], [b]) => a.localeCompare(b))
-                .map(([type, needed]) => {
-                  const ingredientType = type as IngredientType
-                  const config = INGREDIENT_CONFIG_MAP.get(ingredientType)
-                  const name = config?.name ?? ingredientType
-                  const neededQty = needed || 0
-                  const inventoryQty = inventoryMap.get(ingredientType) || 0
-                  const isSufficient = inventoryQty >= neededQty
-                  const shortage = isSufficient ? 0 : neededQty - inventoryQty
-
-                  return (
-                    <tr key={type}>
-                      <td>{name}</td>
-                      <td>{neededQty}份</td>
-                      <td>{inventoryQty}份</td>
-                      <td>
-                        {isSufficient ? (
-                          <StatusBadge status="success" text="✅ 充足" />
-                        ) : (
-                          <StatusBadge status="danger" text={`❌ 缺${shortage}份`} />
-                        )}
-                      </td>
-                    </tr>
-                  )
-                })}
-            </tbody>
-          </table>
         )}
       </div>
 

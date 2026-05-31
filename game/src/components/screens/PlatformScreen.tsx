@@ -13,7 +13,7 @@ export default function PlatformScreen() {
 
   return (
     <div>
-      <h2 className="screen-title">📱 平台营销</h2>
+      <h2 className="screen-title">📱 外卖平台</h2>
 
       <div className="platform-card" style={{ marginBottom: '12px' }}>
         <div className="platform-header">
@@ -119,14 +119,14 @@ export default function PlatformScreen() {
                     size="sm"
                     onClick={() => dispatch({ type: 'TOGGLE_PLATFORM_MARKETING', payload: { platformId: platform.id } })}
                   >
-                    {platform.marketingActive ? '关闭营销' : '开启营销'}
+                    {platform.marketingActive ? '关闭用增' : '用增达人'}
                   </Button>
                   <Button
                     variant={platform.isDelegated ? 'danger' : 'secondary'}
                     size="sm"
                     onClick={() => dispatch({ type: 'TOGGLE_PLATFORM_DELEGATION', payload: { platformId: platform.id } })}
                   >
-                    {platform.isDelegated ? '取消托管' : '托管经营'}
+                    {platform.isDelegated ? '取消托管' : '托管总部'}
                   </Button>
                 </>
               )}

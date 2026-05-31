@@ -119,9 +119,13 @@ export default function RecipeScreen() {
                   <td>{activeRecipeId === recipe.id ? '✅ 使用中' : ''}</td>
                   <td>
                     {activeRecipeId !== recipe.id && (
-                      <Button variant="primary" size="sm" onClick={() => dispatch({ type: 'SET_ACTIVE_RECIPE', payload: { recipeId: recipe.id } })}>
-                        保存当前配方
-                      </Button>
+                      recipe.score >= 7 ? (
+                        <Button variant="primary" size="sm" onClick={() => dispatch({ type: 'SET_ACTIVE_RECIPE', payload: { recipeId: recipe.id } })}>
+                          保存当前配方
+                        </Button>
+                      ) : (
+                        <span className="text-gray text-sm">评分不足7</span>
+                      )
                     )}
                   </td>
                 </tr>
