@@ -605,9 +605,8 @@ export function advanceWeek(state: GameState): GameState {
         continue
       }
 
-      const isPlatformChannel = channel === 'mt' || channel === 'sg' || channel === 'jd'
       const hasSelfSauce = s.activeRecipeId !== null
-      const needed = calculateIngredientsForOrders(availableOrders, s.hasBeerLicense, s.isFranchisePeriod, s.enabledSkus, hasActiveEvent, hasSelfSauce, isPlatformChannel)
+      const needed = calculateIngredientsForOrders(availableOrders, s.hasBeerLicense, s.isFranchisePeriod, s.enabledSkus, hasActiveEvent, hasSelfSauce)
       let canFulfill = availableOrders
 
       for (const [type, qty] of Object.entries(needed)) {
