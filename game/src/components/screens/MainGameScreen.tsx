@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useGame } from '../../core/GameContext'
 import type { WeekPhase } from '../../types'
-import { INGREDIENT_CONFIG_MAP, CHANNEL_LABELS, FURNITURE_CONFIG_MAP, SUMMER_MONTHS } from '../../core/constants'
+import { FURNITURE_CONFIG_MAP, SUMMER_MONTHS } from '../../core/constants'
 import { calculateTotalNeededIngredients } from '../../systems/OrderSystem'
 import ProgressBar from '../ui/ProgressBar'
 import WeeklyReportScreen from './WeeklyReportScreen'
