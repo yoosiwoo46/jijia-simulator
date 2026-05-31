@@ -26,7 +26,7 @@ export default function RecipeScreen() {
   })
 
   const canResearch = cash >= RECIPE_RESEARCH_COST && stamina.current >= 2
-  const totalSauce = Object.values(sauces).reduce((s, v) => s + v, 0)
+  const totalSauce = Object.values(sauces).reduce((s: number, v) => s + v, 0)
 
   function handleSliderChange(key: SauceType, value: number) {
     setSauces(prev => ({ ...prev, [key]: value as SauceLevel }))
