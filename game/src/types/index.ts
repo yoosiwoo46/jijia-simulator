@@ -13,19 +13,19 @@ export type Stamina = {
   max: 10
 }
 
-export enum StaminaCost {
-  HireEmployee = 1,
-  Procurement = 1,
-  ResearchRecipe = 2,
-  PlatformOperation = 1,
-  PrivateDomainOperation = 1,
-  ExpandB2B = 2,
-  BuyFurniture = 1,
-  GetBeerLicense = 1,
-  PlanMarketing = 1,
-  CommunicateHQ = 1,
-  AppealReview = 1,
-}
+export const StaminaCost = {
+  HireEmployee: 1,
+  Procurement: 1,
+  ResearchRecipe: 2,
+  PlatformOperation: 1,
+  PrivateDomainOperation: 1,
+  ExpandB2B: 2,
+  BuyFurniture: 1,
+  GetBeerLicense: 1,
+  PlanMarketing: 1,
+  CommunicateHQ: 1,
+  AppealReview: 1,
+} as const
 
 export type FurnitureType =
   | 'cashier'
@@ -378,6 +378,7 @@ export type GameState = {
   storyEvents: StoryEvent[]
   tutorialSteps: TutorialStep[]
   isFranchisePeriod: boolean
+  leftFranchise: boolean
   brandAwareness: number
   hasBeerLicense: boolean
   weeklyRevenue: number
