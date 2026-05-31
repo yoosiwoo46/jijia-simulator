@@ -1,16 +1,16 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useGame } from '../../core/GameContext'
 import { INGREDIENT_CONFIG_MAP, CHANNEL_LABELS, CHANNEL_PRIORITY } from '../../core/constants'
 import { fmtMoney } from '../../utils/format'
 import { calculateKitchenCapacity } from '../../core/GameEngine'
 import { calculateTotalNeededIngredients } from '../../systems/OrderSystem'
-import StatusBadge from '../ui/StatusBadge'
 import Button from '../ui/Button'
 import type { IngredientType } from '../../types'
 
 export default function ProductionScreen() {
   const { state, dispatch } = useGame()
-  const { channelOrderForecasts, inventory, hasBeerLicense, isFranchisePeriod, employees } = state
+  const { channelOrderForecasts, inventory, isFranchisePeriod, employees } = state
+  const [expandedChannels, setExpandedChannels] = useState<Set<string>>(new Set())
 
   const inventoryMap = useMemo(() => {
     const m = new Map<IngredientType, number>()
@@ -32,7 +32,7 @@ export default function ProductionScreen() {
     [channelOrderForecasts, isFranchisePeriod],
   )
 
-  const totalOrders = channelOrderForecasts.reduce((sum, f) => sum + f.orders, 0)
+  const totalOrders = channelOrderForecasts.filter(f => !f.isOutsourced).reduce((sum, f) => sum + f.orders, 0)
 
   const kitchenInfo = useMemo(() => {
     const { totalCapacity } = calculateKitchenCapacity(employees, 0)
@@ -87,52 +87,77 @@ export default function ProductionScreen() {
                 marginBottom: '6px',
                 borderBottom: '1px solid var(--color-brown)',
                 paddingBottom: '4px',
-              }}>
-                {CHANNEL_LABELS[forecast.channel] || forecast.channelLabel}（{forecast.orders}单）
+                cursor: 'pointer',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+              onClick={() => {
+                  setExpandedChannels(prev => {
+                    const next = new Set(prev)
+                    if (next.has(forecast.channel)) next.delete(forecast.channel)
+                    else next.add(forecast.channel)
+                    return next
+                  })
+                }}
+              >
+                <span>{CHANNEL_LABELS[forecast.channel] || forecast.channelLabel}（{forecast.orders}单）</span>
+                <span style={{ fontSize: '11px', color: '#999' }}>
+                  {expandedChannels.has(forecast.channel) ? '▼ 收起' : '▶ 展开'}
+                </span>
               </div>
-              {(forecast.skuDetails || []).map((sku, i) => (
-                <div key={i} style={{
-                  fontFamily: 'var(--pixel-font)',
-                  fontSize: '11px',
-                  padding: '4px 8px',
-                  marginBottom: '4px',
-                  background: 'var(--color-cream)',
-                  borderRadius: '4px',
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>
-                      <strong>{sku.name}</strong> | {sku.description} |{' '}
-                      {sku.basePrice ? (
-                        <>
-                          平台价<span style={{ textDecoration: 'line-through' }}>{sku.basePrice}</span>
-                          <span style={{ color: 'var(--color-danger)', fontWeight: 'bold', marginLeft: '4px' }}>券后价{fmtMoney(sku.price)}</span>
-                        </>
-                      ) : (
-                        <>{fmtMoney(sku.price)}元</>
-                      )} | {sku.count}单
-                    </span>
+              {expandedChannels.has(forecast.channel) && (
+                <>
+                  {(forecast.skuDetails || []).map((sku, i) => (
+                    <div key={i} style={{
+                      fontFamily: 'var(--pixel-font)',
+                      fontSize: '11px',
+                      padding: '4px 8px',
+                      marginBottom: '4px',
+                      background: 'var(--color-cream)',
+                      borderRadius: '4px',
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span>
+                          <strong>{sku.name}</strong> | {sku.description} |{' '}
+                          {sku.basePrice ? (
+                            <>
+                              平台价<span style={{ textDecoration: 'line-through' }}>{sku.basePrice}</span>
+                              <span style={{ color: 'var(--color-danger)', fontWeight: 'bold', marginLeft: '4px' }}>券后价{fmtMoney(sku.price)}</span>
+                            </>
+                          ) : (
+                            <>{fmtMoney(sku.price)}元</>
+                          )} | {sku.count}单
+                        </span>
+                      </div>
+                      <div style={{ color: '#666', marginTop: '2px' }}>
+                        预计需要原料：{sku.ingredients.map(ing => `${ing.name}×${ing.count}`).join('，')}
+                      </div>
+                    </div>
+                  ))}
+                  <div style={{ marginTop: '6px', display: 'flex', gap: '6px', alignItems: 'center' }}>
+                    {forecast.isOutsourced ? (
+                      <>
+                        <span style={{ fontFamily: 'var(--pixel-font)', fontSize: '11px', color: '#e67e22' }}>
+                          🔄 已{forecast.outsourceType === 'emergency' ? '紧急' : '长期'}外包（收入×{forecast.outsourceType === 'emergency' ? '90' : '85'}%）
+                        </span>
+                        <Button variant="danger" size="sm" onClick={() => dispatch({ type: 'STOP_OUTSOURCE', payload: { channel: forecast.channel } })}>
+                          终止外包
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button variant="secondary" size="sm" onClick={() => dispatch({ type: 'OUTSOURCE_CHANNEL', payload: { channel: forecast.channel, outsourceType: 'emergency' } })}>
+                          紧急外包（收入×90%）
+                        </Button>
+                        <Button variant="secondary" size="sm" onClick={() => dispatch({ type: 'OUTSOURCE_CHANNEL', payload: { channel: forecast.channel, outsourceType: 'longterm' } })}>
+                          长期外包（收入×85%）
+                        </Button>
+                      </>
+                    )}
                   </div>
-                  <div style={{ color: '#666', marginTop: '2px' }}>
-                    预计需要原料：{sku.ingredients.map(ing => `${ing.name}×${ing.count}`).join('，')}
-                  </div>
-                </div>
-              ))}
-                <div style={{ marginTop: '6px', display: 'flex', gap: '6px' }}>
-                  {forecast.isOutsourced ? (
-                    <span style={{ fontFamily: 'var(--pixel-font)', fontSize: '11px', color: '#e67e22' }}>
-                      🔄 已外包（{forecast.outsourceType === 'emergency' ? '紧急' : '长期'}，剩余{forecast.outsourceWeeksLeft}周）
-                    </span>
-                  ) : (
-                    <>
-                      <Button variant="secondary" size="sm" onClick={() => dispatch({ type: 'OUTSOURCE_CHANNEL', payload: { channel: forecast.channel, outsourceType: 'emergency' } })}>
-                        紧急外包（收入×85%）
-                      </Button>
-                      <Button variant="secondary" size="sm" onClick={() => dispatch({ type: 'OUTSOURCE_CHANNEL', payload: { channel: forecast.channel, outsourceType: 'longterm' } })}>
-                        长期外包（收入×80%，3个月）
-                      </Button>
-                    </>
-                  )}
-                </div>
+                </>
+              )}
             </div>
           ))
         )}
