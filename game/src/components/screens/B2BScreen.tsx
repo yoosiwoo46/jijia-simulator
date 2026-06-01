@@ -27,6 +27,8 @@ export default function B2BScreen() {
   const activeMerchants = unlockedMerchants.filter(m => m.isActive)
   const availableToSign = unlockedMerchants.filter(m => !m.isActive && m.cooldownWeeksLeft === 0)
 
+  const cooldownMerchants = unlockedMerchants.filter(m => !m.isActive && m.cooldownWeeksLeft > 0)
+
   return (
     <div>
       <h2 className="screen-title">🏢 B端客户</h2>
@@ -51,6 +53,24 @@ export default function B2BScreen() {
                   签约
                 </Button>
               </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {cooldownMerchants.length > 0 && (
+        <div className="card mb-12">
+          <div className="card-title">冷却中</div>
+          {cooldownMerchants.map(merchant => (
+            <div key={merchant.type} className="employee-card" style={{ opacity: 0.6 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span className="employee-name">{merchant.name}</span>
+                <span style={{ fontFamily: 'var(--pixel-font)', fontSize: '11px', color: '#e67e22' }}>
+                  冷却{merchant.cooldownWeeksLeft}周
+                </span>
+              </div>
+              <div className="employee-detail">周订单：{merchant.minWeeklyOrders}-{merchant.maxWeeklyOrders}份</div>
+              <div className="employee-detail">单价：{fmtMoney(merchant.unitPrice)}元/份</div>
             </div>
           ))}
         </div>

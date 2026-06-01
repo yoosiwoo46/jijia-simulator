@@ -31,7 +31,7 @@ function seededRandom(seed: number): number {
 
 export default function ProcurementScreen() {
   const { state, dispatch } = useGame()
-  const { inventory, cash, stamina, channelOrderForecasts, absoluteWeek, isFranchisePeriod } = state
+  const { inventory, cash, stamina, channelOrderForecasts, absoluteWeek } = state
 
   const wholesalePriceMap = useMemo(() => {
     const m = new Map<IngredientType, number>()
@@ -61,22 +61,18 @@ export default function ProcurementScreen() {
   }, [inventory])
 
   const predictedDemand = useMemo(() => {
-    const base = calculateTotalNeededIngredients(channelOrderForecasts, isFranchisePeriod)
+    const base = calculateTotalNeededIngredients(channelOrderForecasts)
     const result: Partial<Record<IngredientType, number>> = {}
     let i = 0
     for (const [type, qty] of Object.entries(base)) {
       if (qty && qty > 0) {
-        if (!state.isFranchisePeriod && type === 'official_sauce') {
-          i++
-          continue
-        }
         const variance = seededRandom(absoluteWeek * 1000 + i) * 0.2 - 0.1
         result[type as IngredientType] = Math.round(qty * (1 + variance))
       }
       i++
     }
     return result
-  }, [channelOrderForecasts, absoluteWeek, isFranchisePeriod])
+  }, [channelOrderForecasts, absoluteWeek])
 
   const [selectedType, setSelectedType] = useState<IngredientType>('chicken_rack')
   const [quantity, setQuantity] = useState(100)

@@ -50,6 +50,7 @@ export function calculateIngredientsForOrders(
   enabledSkus?: string[],
   hasActiveEvent: boolean = false,
   hasSelfSauce: boolean = false,
+  isPlatformChannel: boolean = false,
 ): Partial<Record<IngredientType, number>> {
   const allSides = SKU_CONFIGS.filter((s) => s.type === 'side')
   const allDrinks = SKU_CONFIGS.filter((s) => s.type === 'drink')
@@ -71,12 +72,12 @@ export function calculateIngredientsForOrders(
   // 主食：每份订单必定需要
   const mainCount = orderCount
   total['chicken_rack'] = (total['chicken_rack'] || 0) + mainCount
-  if (useOfficialSauce) {
+  if (useOfficialSauce && (isPlatformChannel || !hasSelfSauce)) {
     total['official_sauce'] = (total['official_sauce'] || 0) + mainCount
+  } else if (hasSelfSauce) {
+    total['self_sauce'] = (total['self_sauce'] || 0) + mainCount
   } else {
-    if (hasSelfSauce) {
-      total['self_sauce'] = (total['self_sauce'] || 0) + mainCount
-    }
+    total['official_sauce'] = (total['official_sauce'] || 0) + mainCount
   }
 
   // 配菜：70% 的订单会加一份，在所有配菜中均匀分布
@@ -161,6 +162,7 @@ export function generateSKUDetails(
 
   const allDrinks = SKU_CONFIGS.filter(s => s.type === 'drink')
 
+  const sauceName = isFranchisePeriod ? '官方拌料' : '自研拌料'
   details.push({
     name: '拌鸡架',
     description: '拌鸡架+拌料',
@@ -168,7 +170,7 @@ export function generateSKUDetails(
     count: mainCount,
     ingredients: [
       { name: '生鸡架', count: mainCount },
-      ...(isFranchisePeriod ? [{ name: '官方拌料', count: mainCount }] : [{ name: '自研拌料', count: mainCount }]),
+      { name: sauceName, count: mainCount },
     ],
   })
 
@@ -348,7 +350,6 @@ export function deductIngredientsFromPlan(
  */
 export function calculateTotalNeededIngredients(
   forecasts: ChannelOrderForecast[],
-  isFranchisePeriod: boolean = true,
 ): Partial<Record<IngredientType, number>> {
   const total: Partial<Record<IngredientType, number>> = {}
 
@@ -359,7 +360,6 @@ export function calculateTotalNeededIngredients(
     for (const [type, qty] of Object.entries(forecast.skuBreakdown)) {
       if (qty) {
         const t = type as IngredientType
-        if (!isFranchisePeriod && t === 'official_sauce') continue
         total[t] = (total[t] || 0) + qty
       }
     }

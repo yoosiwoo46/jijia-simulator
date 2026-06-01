@@ -9,7 +9,7 @@ import type { IngredientType } from '../../types'
 
 export default function ProductionScreen() {
   const { state, dispatch } = useGame()
-  const { channelOrderForecasts, inventory, isFranchisePeriod, employees } = state
+  const { channelOrderForecasts, inventory, employees } = state
   const [expandedChannels, setExpandedChannels] = useState<Set<string>>(new Set())
 
   const inventoryMap = useMemo(() => {
@@ -28,8 +28,8 @@ export default function ProductionScreen() {
   )
 
   const totalNeeded = useMemo(
-    () => calculateTotalNeededIngredients(channelOrderForecasts, isFranchisePeriod),
-    [channelOrderForecasts, isFranchisePeriod],
+    () => calculateTotalNeededIngredients(channelOrderForecasts),
+    [channelOrderForecasts],
   )
 
   const totalOrders = channelOrderForecasts.filter(f => !f.isOutsourced).reduce((sum, f) => sum + f.orders, 0)
@@ -52,7 +52,10 @@ export default function ProductionScreen() {
     for (const [type, needed] of Object.entries(totalNeeded)) {
       if (!needed || needed <= 0) continue
       const t = type as IngredientType
-      const have = inventoryMap.get(t) || 0
+      let have = inventoryMap.get(t) || 0
+      if (have < needed && t === 'self_sauce') {
+        have += inventoryMap.get('official_sauce') || 0
+      }
       if (have < needed) {
         shortages.push({
           name: INGREDIENT_CONFIG_MAP.get(t)?.name ?? t,

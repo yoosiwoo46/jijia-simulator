@@ -586,6 +586,13 @@ export function advanceWeek(state: GameState): GameState {
   const cancelledOrders: Record<string, number> = {}
   const outsourcedOrders: Record<string, number> = {}
 
+  const remainingInventory = new Map<IngredientType, number>()
+  for (const item of s.inventory) {
+    if (item.remainingShelfLife > 0) {
+      remainingInventory.set(item.type as IngredientType, (remainingInventory.get(item.type as IngredientType) || 0) + item.quantity)
+    }
+  }
+
   if (s.absoluteWeek === 1) {
     for (const channel of CHANNEL_PRIORITY) {
       const availableOrders = ordersByChannel[channel] || 0
@@ -605,25 +612,21 @@ export function advanceWeek(state: GameState): GameState {
         continue
       }
 
+      const isPlatformChannel = ['mt', 'sg', 'jd'].includes(channel)
       const hasSelfSauce = s.activeRecipeId !== null
-      const needed = calculateIngredientsForOrders(availableOrders, s.hasBeerLicense, s.isFranchisePeriod, s.enabledSkus, hasActiveEvent, hasSelfSauce)
+      const allocatedNeeded = calculateIngredientsForOrders(availableOrders, s.hasBeerLicense, s.isFranchisePeriod, s.enabledSkus, hasActiveEvent, hasSelfSauce, isPlatformChannel)
       let canFulfill = availableOrders
 
-      for (const [type, qty] of Object.entries(needed)) {
+      for (const [type, qty] of Object.entries(allocatedNeeded)) {
         if (!qty || qty <= 0) continue
         const t = type as IngredientType
-        let available = s.inventory
-          .filter(item => item.type === t && item.remainingShelfLife > 0)
-          .reduce((sum, item) => sum + item.quantity, 0)
+        let available = remainingInventory.get(t) || 0
         if (available < qty && t === 'self_sauce') {
-          const officialAvailable = s.inventory
-            .filter(item => item.type === 'official_sauce' && item.remainingShelfLife > 0)
-            .reduce((sum, item) => sum + item.quantity, 0)
-          available += officialAvailable
+          available += remainingInventory.get('official_sauce') || 0
         }
         if (available < qty) {
           const fraction = available / qty
-          canFulfill = Math.min(canFulfill, Math.floor(availableOrders * fraction))
+          canFulfill = Math.min(canFulfill, Math.max(available > 0 ? 1 : 0, Math.floor(availableOrders * fraction)))
         }
       }
 
@@ -631,6 +634,31 @@ export function advanceWeek(state: GameState): GameState {
       if (allocated > 0) {
         fulfilledOrders.set(channel, allocated)
         remainingCapacity -= allocated
+
+        const deductNeeded = calculateIngredientsForOrders(allocated, s.hasBeerLicense, s.isFranchisePeriod, s.enabledSkus, hasActiveEvent, hasSelfSauce, isPlatformChannel)
+        for (const [type, qty] of Object.entries(deductNeeded)) {
+          if (!qty || qty <= 0) continue
+          const t = type as IngredientType
+          let remaining = qty
+          let have = remainingInventory.get(t) || 0
+          if (have >= remaining) {
+            remainingInventory.set(t, have - remaining)
+            remaining = 0
+          } else if (have > 0) {
+            remaining -= have
+            remainingInventory.set(t, 0)
+          }
+          if (remaining > 0 && t === 'self_sauce') {
+            let officialHave = remainingInventory.get('official_sauce') || 0
+            if (officialHave >= remaining) {
+              remainingInventory.set('official_sauce', officialHave - remaining)
+              remaining = 0
+            } else if (officialHave > 0) {
+              remaining -= officialHave
+              remainingInventory.set('official_sauce', 0)
+            }
+          }
+        }
       }
 
       if (availableOrders > allocated) {

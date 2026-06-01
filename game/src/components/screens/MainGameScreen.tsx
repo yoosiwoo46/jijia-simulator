@@ -211,7 +211,7 @@ export default function MainGameScreen() {
 
   const badges = useMemo(() => {
     const b: Record<string, boolean> = {}
-    const totalNeeded = calculateTotalNeededIngredients(channelOrderForecasts, isFranchisePeriod)
+    const totalNeeded = calculateTotalNeededIngredients(channelOrderForecasts)
     for (const [type, needed] of Object.entries(totalNeeded)) {
       if (!needed || needed <= 0) continue
       const have = inventory.filter(i => i.type === type).reduce((s, i) => s + i.quantity, 0)
